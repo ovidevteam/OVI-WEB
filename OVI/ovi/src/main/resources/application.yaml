@@ -1,0 +1,47 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: ovi
+  datasource:
+    url: jdbc:postgresql://14.225.71.26:55432/webovidb
+    username: webovi
+    password: Dbwebovi2025
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5          # ✅ Minimum pool size
+      maximum-pool-size: 20    # ✅ Maximum pool size
+      pool-name: HikariPool    # Optional: Custom pool name
+  jpa:
+    hibernate:
+      ddl-auto: validate  # hoặc validate / create / create-drop
+      auto-commit: false
+    show-sql: true
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: besttaloon03@gmail.com
+#    password: "qjxh rbms xsry wwlr"
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+  mail:
+    host: mail.ovigroup.vn
+    port: 587
+    username: info@ovigroup.vn
+    password: "2L]cvqnIxIx(uuXM"
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+    from: info@ovigroup.vn
+  #logging:
+  #  level:
+  #    org.hibernate.SQL: DEBUG
