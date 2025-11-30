@@ -1,14 +1,17 @@
 <template>
 	<div class="auth-layout">
-		<div class="auth-background">
-			<div class="auth-overlay"></div>
-			<div class="auth-shapes">
-				<div class="shape shape-1"></div>
-				<div class="shape shape-2"></div>
-				<div class="shape shape-3"></div>
-				<div class="shape shape-4"></div>
-			</div>
+		<!-- Layer 1: Background Image -->
+		<div class="auth-bg-image"></div>
+		<!-- Layer 2: Bubble shapes (phía trên ảnh) -->
+		<div class="auth-shapes">
+			<div class="shape shape-1"></div>
+			<div class="shape shape-2"></div>
+			<div class="shape shape-3"></div>
+			<div class="shape shape-4"></div>
+			<div class="shape shape-5"></div>
+			<div class="shape shape-6"></div>
 		</div>
+		<!-- Layer 3: Content -->
 		<div class="auth-container">
 			<router-view />
 		</div>
@@ -28,66 +31,97 @@
 	overflow: hidden;
 }
 
-/* Background theo mẫu benhviendaihocyhanoi.isofhcare.vn */
-.auth-background {
+/* Layer 1: Background Image - Ảnh bệnh viện */
+.auth-bg-image {
 	position: absolute;
 	inset: 0;
-	background: linear-gradient(135deg, #1a365d 0%, #2563eb 50%, #0891b2 100%);
 	z-index: 0;
+	background-image: url('/images/bg-dhy.png');
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
 }
 
-.auth-overlay {
-	position: absolute;
-	inset: 0;
-	background:
-		radial-gradient(ellipse at 20% 80%, rgba(6, 182, 212, 0.3) 0%, transparent 50%),
-		radial-gradient(ellipse at 80% 20%, rgba(37, 99, 235, 0.3) 0%, transparent 50%),
-		radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
-}
-
+/* Layer 2: Bubble shapes - Phía trên ảnh */
 .auth-shapes {
 	position: absolute;
 	inset: 0;
+	z-index: 1;
 	overflow: hidden;
+	pointer-events: none;
 }
 
 .shape {
 	position: absolute;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.05);
+	backdrop-filter: blur(2px);
 	animation: float 20s ease-in-out infinite;
 }
 
+/* Bong bóng xanh dương đậm */
 .shape-1 {
 	width: 400px;
 	height: 400px;
 	top: -100px;
 	left: -100px;
+	background: rgba(37, 99, 235, 0.15);
+	border: 1px solid rgba(37, 99, 235, 0.2);
 	animation-delay: 0s;
 }
 
+/* Bong bóng xanh cyan */
 .shape-2 {
 	width: 300px;
 	height: 300px;
 	bottom: -50px;
 	right: -50px;
+	background: rgba(6, 182, 212, 0.12);
+	border: 1px solid rgba(6, 182, 212, 0.2);
 	animation-delay: -5s;
 }
 
+/* Bong bóng xanh navy */
 .shape-3 {
 	width: 200px;
 	height: 200px;
 	top: 50%;
 	left: 10%;
+	background: rgba(26, 54, 93, 0.1);
+	border: 1px solid rgba(26, 54, 93, 0.15);
 	animation-delay: -10s;
 }
 
+/* Bong bóng xanh lá nhạt */
 .shape-4 {
 	width: 150px;
 	height: 150px;
 	top: 20%;
 	right: 15%;
+	background: rgba(16, 185, 129, 0.1);
+	border: 1px solid rgba(16, 185, 129, 0.15);
 	animation-delay: -15s;
+}
+
+/* Bong bóng xanh dương nhạt */
+.shape-5 {
+	width: 100px;
+	height: 100px;
+	bottom: 30%;
+	left: 20%;
+	background: rgba(59, 130, 246, 0.12);
+	border: 1px solid rgba(59, 130, 246, 0.18);
+	animation-delay: -7s;
+}
+
+/* Bong bóng tím nhạt */
+.shape-6 {
+	width: 80px;
+	height: 80px;
+	top: 60%;
+	right: 25%;
+	background: rgba(139, 92, 246, 0.1);
+	border: 1px solid rgba(139, 92, 246, 0.15);
+	animation-delay: -12s;
 }
 
 @keyframes float {
@@ -97,9 +131,10 @@
 	75% { transform: translate(15px, 15px) scale(1.02); }
 }
 
+/* Layer 3: Content container */
 .auth-container {
 	position: relative;
-	z-index: 1;
+	z-index: 2;
 	width: 100%;
 	max-width: 440px;
 	padding: 20px;
