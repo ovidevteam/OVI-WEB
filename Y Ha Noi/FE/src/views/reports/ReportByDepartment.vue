@@ -219,9 +219,7 @@
 
 			<template #footer>
 				<el-button @click="detailDialogVisible = false">Đóng</el-button>
-				<el-button type="primary" @click="goToFeedbackList">
-					Xem tất cả phản ánh
-				</el-button>
+				<el-button type="primary" @click="goToFeedbackList">Xem tất cả phản ánh</el-button>
 			</template>
 		</el-dialog>
 	</div>

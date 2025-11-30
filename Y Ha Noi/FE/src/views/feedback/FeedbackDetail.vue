@@ -4,7 +4,7 @@
 			<!-- Header -->
 			<div class="detail-header">
 				<div class="header-left">
-					<el-button :icon="ArrowLeft" @click="goBack">Quay lại</el-button>
+					<el-button @click="goBack">Quay lại</el-button>
 					<div class="header-info">
 						<h2 class="feedback-code">{{ feedback.code }}</h2>
 						<div class="header-meta">
@@ -102,7 +102,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
+// Icons removed - using text-only buttons
 import {
 	formatDateTime, getChannelLabel, getLevelLabel, getLevelType,
 	getStatusLabel, getStatusType

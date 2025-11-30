@@ -259,7 +259,6 @@
 					:loading="submitting"
 					@click="submitProcess"
 				>
-					<el-icon><Check /></el-icon>
 					Lưu xử lý
 				</el-button>
 			</template>
@@ -273,7 +272,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
 	Warning, Loading, CircleCheck, Clock, Document, Edit,
-	List, Upload, Check, Paperclip
+	List, Upload, Paperclip
 } from '@element-plus/icons-vue'
 import { formatDate, truncate, getLevelLabel, getLevelType } from '@/utils/helpers'
 import feedbackService from '@/services/feedbackService'

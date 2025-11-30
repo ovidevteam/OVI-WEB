@@ -241,7 +241,6 @@
 			<template #footer>
 				<el-button @click="ratingDialogVisible = false">Hủy</el-button>
 				<el-button type="primary" @click="submitRating" :loading="submitting">
-					<el-icon><Check /></el-icon>
 					{{ selectedFeedback?.rating ? 'Cập nhật' : 'Lưu đánh giá' }}
 				</el-button>
 			</template>
@@ -254,7 +253,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
-	Star, Clock, CircleCheck, TrendCharts, Search, RefreshRight, Edit, Check
+	Star, Clock, CircleCheck, TrendCharts, Search, RefreshRight, Edit
 } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()

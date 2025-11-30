@@ -77,8 +77,7 @@
 			<div class="content-card-header">
 				<h3 class="content-card-title">Phản ánh mới nhất</h3>
 				<el-button type="primary" text @click="goToList">
-					Xem tất cả
-					<el-icon class="el-icon--right"><ArrowRight /></el-icon>
+					Xem tất cả <el-icon class="el-icon--right"><ArrowRight /></el-icon>
 				</el-button>
 			</div>
 

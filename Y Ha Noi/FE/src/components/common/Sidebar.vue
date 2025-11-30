@@ -182,14 +182,14 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 </script>
 
 <style scoped>
-/* Frosted glass effect cho sidebar - tương tự login region */
+/* Sidebar màu trắng/xám nhạt - khác biệt với logo */
 .sidebar {
 	position: fixed;
 	left: 0;
 	top: 0;
 	height: 100vh;
 	width: var(--sidebar-width);
-	background: linear-gradient(180deg, rgba(26, 54, 93, 0.95) 0%, rgba(44, 82, 130, 0.92) 100%);
+	background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
 	backdrop-filter: blur(12px);
 	-webkit-backdrop-filter: blur(12px);
 	display: flex;
@@ -197,8 +197,8 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 	transition: width var(--transition-normal);
 	z-index: 200;
 	overflow: hidden;
-	border-right: 1px solid rgba(255, 255, 255, 0.1);
-	box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+	border-right: 1px solid #e2e8f0;
+	box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar::before {
@@ -206,8 +206,8 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 	position: absolute;
 	inset: 0;
 	background:
-		radial-gradient(ellipse at 0% 100%, rgba(0, 180, 216, 0.15) 0%, transparent 50%),
-		radial-gradient(ellipse at 100% 0%, rgba(37, 99, 235, 0.1) 0%, transparent 50%);
+		radial-gradient(ellipse at 0% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+		radial-gradient(ellipse at 100% 0%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
 	pointer-events: none;
 }
 
@@ -224,16 +224,17 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 	backdrop-filter: blur(2px);
 }
 
-/* Logo */
+/* Logo - cùng màu với sidebar */
 .sidebar-logo {
 	height: var(--header-height);
 	display: flex;
 	align-items: center;
 	padding: 0 12px;
 	gap: 12px;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	border-bottom: 1px solid #e2e8f0;
 	flex-shrink: 0;
 	overflow: hidden;
+	background: transparent;
 }
 
 /* Khi collapsed - căn giữa logo */
@@ -245,7 +246,8 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 	width: 40px;
 	height: 40px;
 	min-width: 40px;
-	background: linear-gradient(135deg, #00b4d8 0%, #48cae4 100%);
+	/* Trùng màu với login-logo */
+	background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
 	border-radius: var(--radius-md);
 	display: flex;
 	align-items: center;
@@ -271,13 +273,13 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 .logo-title {
 	font-size: 15px;
 	font-weight: 700;
-	color: white;
+	color: #1a365d;
 	line-height: 1.2;
 }
 
 .logo-subtitle {
 	font-size: 11px;
-	color: rgba(255, 255, 255, 0.7);
+	color: #64748b;
 }
 
 /* Menu - Giảm padding để hiển thị nhiều chữ hơn */
@@ -300,7 +302,7 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 :deep(.el-sub-menu__title) {
 	height: 40px;
 	line-height: 40px;
-	color: rgba(255, 255, 255, 0.85);
+	color: #475569;
 	border-radius: var(--radius-sm);
 	margin-bottom: 2px;
 	padding: 0 12px !important;
@@ -309,18 +311,19 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-	background-color: rgba(255, 255, 255, 0.1);
-	color: white;
+	background-color: rgba(26, 54, 93, 0.08);
+	color: #1a365d;
 }
 
 :deep(.el-menu-item.is-active) {
-	background: linear-gradient(90deg, rgba(0, 180, 216, 0.3) 0%, rgba(0, 180, 216, 0.1) 100%);
-	color: #48cae4;
+	background: linear-gradient(90deg, rgba(26, 54, 93, 0.15) 0%, rgba(26, 54, 93, 0.05) 100%);
+	color: #1a365d;
+	font-weight: 600;
 }
 
 /* Inline submenu - Giảm indent */
 :deep(.el-sub-menu .el-menu) {
-	background: rgba(0, 0, 0, 0.15) !important;
+	background: rgba(26, 54, 93, 0.04) !important;
 	border-radius: var(--radius-sm);
 	padding: 2px 0;
 	margin: 4px 0;
@@ -331,22 +334,23 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 	height: 36px;
 	line-height: 36px;
 	font-size: 13px;
-	color: rgba(255, 255, 255, 0.8) !important;
+	color: #64748b !important;
 	background: transparent !important;
 }
 
 :deep(.el-sub-menu .el-menu-item:hover) {
-	background: rgba(255, 255, 255, 0.1) !important;
-	color: white !important;
+	background: rgba(26, 54, 93, 0.08) !important;
+	color: #1a365d !important;
 }
 
 :deep(.el-sub-menu .el-menu-item.is-active) {
-	background: rgba(0, 180, 216, 0.2) !important;
-	color: #48cae4 !important;
+	background: rgba(26, 54, 93, 0.12) !important;
+	color: #1a365d !important;
+	font-weight: 600;
 }
 
 :deep(.el-menu--collapse .el-sub-menu.is-active .el-sub-menu__title) {
-	color: #48cae4;
+	color: #1a365d;
 }
 
 /* Khi collapsed - căn giữa icon menu */
@@ -443,13 +447,13 @@ const canViewReports = computed(() => authStore.hasRole(['ADMIN', 'LEADER']))
 /* Footer */
 .sidebar-footer {
 	padding: 16px;
-	border-top: 1px solid rgba(255, 255, 255, 0.1);
+	border-top: 1px solid #e2e8f0;
 	flex-shrink: 0;
 }
 
 .version-info {
 	font-size: 11px;
-	color: rgba(255, 255, 255, 0.5);
+	color: #94a3b8;
 	text-align: center;
 }
 

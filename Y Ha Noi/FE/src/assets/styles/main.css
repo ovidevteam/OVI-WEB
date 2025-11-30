@@ -492,6 +492,28 @@ a:hover {
    Element Plus Overrides
    ======================================== */
 
+/* Button icon spacing - đảm bảo khoảng cách nhất quán */
+.el-button .el-icon {
+	margin-right: 6px;
+}
+
+.el-button .el-icon + span,
+.el-button .el-icon:first-child {
+	margin-right: 0;
+}
+
+/* Icon bên phải text */
+.el-button .el-icon.el-icon--right {
+	margin-right: 0;
+	margin-left: 6px;
+}
+
+/* Icon only button - không cần margin */
+.el-button .el-icon:only-child {
+	margin-right: 0;
+	margin-left: 0;
+}
+
 .el-button--primary {
 	--el-button-bg-color: var(--primary-color);
 	--el-button-border-color: var(--primary-color);

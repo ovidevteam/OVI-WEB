@@ -106,9 +106,7 @@
 
 			<template #footer>
 				<el-button @click="dialogVisible = false">Hủy</el-button>
-				<el-button type="primary" :loading="saveLoading" @click="handleSave">
-					Lưu
-				</el-button>
+				<el-button type="primary" :loading="saveLoading" @click="handleSave">Lưu</el-button>
 			</template>
 		</el-dialog>
 	</div>

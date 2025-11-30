@@ -122,12 +122,8 @@
 
 				<!-- Actions -->
 				<div class="form-actions">
-					<el-button @click="goBack" size="large">
-						<el-icon><Close /></el-icon>
-						Hủy
-					</el-button>
+					<el-button @click="goBack" size="large">Hủy</el-button>
 					<el-button type="primary" :loading="loading" @click="handleSubmit" size="large">
-						<el-icon><Check /></el-icon>
 						Lưu phản ánh
 					</el-button>
 				</div>
@@ -140,7 +136,7 @@
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Check, Close, Document, Picture } from '@element-plus/icons-vue'
+import { Document, Picture } from '@element-plus/icons-vue'
 import { CHANNELS, LEVELS } from '@/utils/constants'
 import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'

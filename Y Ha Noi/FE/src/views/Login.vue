@@ -49,7 +49,6 @@
 					:loading="authStore.loading"
 					@click="handleLogin"
 				>
-					<el-icon v-if="!authStore.loading"><Right /></el-icon>
 					Đăng nhập
 				</el-button>
 			</el-form-item>
@@ -102,7 +101,6 @@
 				<div v-if="!forgotSuccess">
 					<el-button @click="forgotDialogVisible = false">Hủy</el-button>
 					<el-button type="primary" @click="handleForgotPassword" :loading="forgotLoading">
-						<el-icon v-if="!forgotLoading"><Promotion /></el-icon>
 						Gửi yêu cầu
 					</el-button>
 				</div>
@@ -132,7 +130,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Right, Message, Promotion, CircleCheckFilled } from '@element-plus/icons-vue'
+import { User, Lock, Message, CircleCheckFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
