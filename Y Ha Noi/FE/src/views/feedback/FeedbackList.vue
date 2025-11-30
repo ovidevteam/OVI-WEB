@@ -86,41 +86,43 @@
 				@row-click="handleRowClick"
 				row-class-name="clickable-row"
 			>
-				<el-table-column prop="code" label="Số PA" width="160" fixed />
-				<el-table-column prop="receivedDate" label="Ngày nhận" width="120">
+				<el-table-column prop="code" label="Số PA" width="145" />
+				<el-table-column prop="receivedDate" label="Ngày nhận" width="105">
 					<template #default="{ row }">
 						{{ formatDate(row.receivedDate) }}
 					</template>
 				</el-table-column>
-				<el-table-column prop="channel" label="Kênh" width="100">
+				<el-table-column prop="channel" label="Kênh" width="90">
 					<template #default="{ row }">
 						<el-tag size="small" effect="plain">
 							{{ getChannelLabel(row.channel) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="content" label="Nội dung" min-width="250">
+				<el-table-column prop="content" label="Nội dung" min-width="200">
 					<template #default="{ row }">
-						<span class="content-text">{{ truncate(row.content, 60) }}</span>
+						<el-tooltip :content="row.content" placement="top" :show-after="500">
+							<span class="content-cell">{{ row.content }}</span>
+						</el-tooltip>
 					</template>
 				</el-table-column>
-				<el-table-column prop="departmentName" label="Phòng ban" width="140" />
-				<el-table-column prop="level" label="Mức độ" width="110" align="center">
+				<el-table-column prop="departmentName" label="Phòng ban" min-width="110" />
+				<el-table-column prop="level" label="Mức độ" width="95" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getLevelType(row.level)" size="small">
 							{{ getLevelLabel(row.level) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="status" label="Trạng thái" width="130" align="center">
+				<el-table-column prop="status" label="Trạng thái" width="110" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getStatusType(row.status)" size="small">
 							{{ getStatusLabel(row.status) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="handlerName" label="Người xử lý" width="140" />
-				<el-table-column label="" width="100" fixed="right" align="center">
+				<el-table-column prop="handlerName" label="Người xử lý" min-width="130" />
+				<el-table-column label="" width="80" fixed="right" align="center">
 					<template #default="{ row }">
 						<el-button type="primary" link @click.stop="viewDetail(row.id)">
 							Chi tiết
@@ -294,7 +296,14 @@ onMounted(() => {
 	gap: 8px;
 }
 
-.content-text {
+.content-cell {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.4;
+	word-break: break-word;
 	color: var(--text-primary);
 }
 

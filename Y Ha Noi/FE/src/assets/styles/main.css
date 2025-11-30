@@ -595,3 +595,14 @@ a:hover {
 .w-100 { width: 100%; }
 .cursor-pointer { cursor: pointer; }
 
+/* Table content cell - responsive text */
+.content-cell {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.4;
+	word-break: break-word;
+}
+

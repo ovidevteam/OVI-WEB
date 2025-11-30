@@ -82,33 +82,35 @@
 			</div>
 
 			<el-table :data="recentFeedbacks" stripe style="width: 100%">
-				<el-table-column prop="code" label="Số PA" width="150" />
-				<el-table-column prop="receivedDate" label="Ngày" width="120">
+				<el-table-column prop="code" label="Số PA" width="145" />
+				<el-table-column prop="receivedDate" label="Ngày" width="105">
 					<template #default="{ row }">
 						{{ formatDate(row.receivedDate) }}
 					</template>
 				</el-table-column>
-				<el-table-column prop="content" label="Nội dung" min-width="200">
+				<el-table-column prop="content" label="Nội dung" min-width="220">
 					<template #default="{ row }">
-						{{ truncate(row.content, 50) }}
+						<el-tooltip :content="row.content" placement="top" :show-after="500">
+							<span class="content-cell">{{ row.content }}</span>
+						</el-tooltip>
 					</template>
 				</el-table-column>
-				<el-table-column prop="departmentName" label="Phòng" width="150" />
-				<el-table-column prop="level" label="Mức độ" width="120" align="center">
+				<el-table-column prop="departmentName" label="Phòng" min-width="100" />
+				<el-table-column prop="level" label="Mức độ" width="95" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getLevelType(row.level)" size="small">
 							{{ getLevelLabel(row.level) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="status" label="Trạng thái" width="130" align="center">
+				<el-table-column prop="status" label="Trạng thái" width="105" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getStatusType(row.status)" size="small">
 							{{ getStatusLabel(row.status) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="" width="80" align="center">
+				<el-table-column label="" width="50" align="center">
 					<template #default="{ row }">
 						<el-button
 							type="primary"
@@ -245,6 +247,16 @@ onMounted(async () => {
 .chart-container {
 	height: 320px;
 	position: relative;
+}
+
+.content-cell {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.4;
+	word-break: break-word;
 }
 
 @media (max-width: 1200px) {

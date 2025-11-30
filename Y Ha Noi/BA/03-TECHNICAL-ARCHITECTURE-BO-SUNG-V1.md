@@ -140,7 +140,27 @@ Response:
             "departmentName": "Nội khoa",
             "completedDate": "20/11/2024",
             "rating": 4,
-            "comment": "Bác sĩ xử lý tốt"
+            "comment": "Bác sĩ xử lý tốt",
+            "processHistory": [
+                {
+                    "date": "18/11/2024 08:30",
+                    "handler": "Nguyễn Văn Tiếp Nhận",
+                    "action": "Tiếp nhận",
+                    "note": "Tiếp nhận phản ánh từ hotline"
+                },
+                {
+                    "date": "19/11/2024 14:00",
+                    "handler": "BS. Nguyễn Văn A",
+                    "action": "Đang xử lý",
+                    "note": "Đang xác minh tình trạng"
+                },
+                {
+                    "date": "20/11/2024 10:00",
+                    "handler": "Trưởng khoa",
+                    "action": "Hoàn thành",
+                    "note": "Xác nhận đã xử lý xong"
+                }
+            ]
         }
     ],
     "total": 100,
@@ -151,6 +171,9 @@ Response:
         "avgRating": 4.2
     }
 }
+
+Note: processHistory được bao gồm để người đánh giá có cơ sở xem xét quá trình xử lý trước khi đánh giá.
+Alternative: FE có thể gọi riêng GET /api/feedbacks/{id}/history khi mở dialog đánh giá.
 ```
 
 ```

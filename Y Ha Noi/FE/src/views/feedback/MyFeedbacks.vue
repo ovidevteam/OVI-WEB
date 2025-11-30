@@ -66,8 +66,8 @@
 				style="width: 100%"
 				@row-click="handleRowClick"
 			>
-				<el-table-column prop="code" label="Số PA" width="160" />
-				<el-table-column prop="receivedDate" label="Ngày nhận" width="120">
+				<el-table-column prop="code" label="Số PA" width="145" />
+				<el-table-column prop="receivedDate" label="Ngày nhận" width="115">
 					<template #default="{ row }">
 						<div class="date-cell">
 							{{ formatDate(row.receivedDate) }}
@@ -83,20 +83,22 @@
 						</div>
 					</template>
 				</el-table-column>
-				<el-table-column prop="content" label="Nội dung" min-width="250">
+				<el-table-column prop="content" label="Nội dung" min-width="220">
 					<template #default="{ row }">
-						{{ truncate(row.content, 60) }}
+						<el-tooltip :content="row.content" placement="top" :show-after="500">
+							<span class="content-cell">{{ row.content }}</span>
+						</el-tooltip>
 					</template>
 				</el-table-column>
-				<el-table-column prop="departmentName" label="Phòng ban" width="140" />
-				<el-table-column prop="level" label="Mức độ" width="110" align="center">
+				<el-table-column prop="departmentName" label="Phòng ban" min-width="110" />
+				<el-table-column prop="level" label="Mức độ" width="95" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getLevelType(row.level)" size="small">
 							{{ getLevelLabel(row.level) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="" width="120" align="center">
+				<el-table-column label="" width="90" align="center">
 					<template #default="{ row }">
 						<el-button type="primary" @click.stop="openProcessDialog(row)">
 							{{ row.status === 'COMPLETED' ? 'Xem' : 'Xử lý' }}
@@ -549,6 +551,16 @@ onMounted(() => {
 
 .overdue-tag {
 	width: fit-content;
+}
+
+.content-cell {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.4;
+	word-break: break-word;
 }
 
 .text-danger {

@@ -96,34 +96,34 @@
 				class="rating-table"
 				style="width: 100%"
 			>
-				<el-table-column prop="code" label="Mã PA" width="120" fixed />
-				<el-table-column prop="content" label="Nội dung" min-width="200">
+				<el-table-column prop="code" label="Mã PA" width="130" />
+				<el-table-column prop="content" label="Nội dung" min-width="280">
 					<template #default="{ row }">
 						<el-tooltip :content="row.content" placement="top" :show-after="500">
-							<span class="text-ellipsis">{{ row.content }}</span>
+							<span class="content-text">{{ row.content }}</span>
 						</el-tooltip>
 					</template>
 				</el-table-column>
-				<el-table-column prop="doctorName" label="Bác sĩ liên quan" width="160">
+				<el-table-column prop="doctorName" label="Bác sĩ" min-width="150">
 					<template #default="{ row }">
 						<div class="doctor-cell">
 							<el-avatar :size="28" class="doctor-avatar">
 								{{ row.doctorName?.charAt(0) }}
 							</el-avatar>
-							<span>{{ row.doctorName || '-' }}</span>
+							<span class="doctor-name-text">{{ row.doctorName || '-' }}</span>
 						</div>
 					</template>
 				</el-table-column>
-				<el-table-column prop="departmentName" label="Phòng ban" width="120" />
-				<el-table-column prop="completedDate" label="Ngày HT" width="110" />
-				<el-table-column prop="ratingStatus" label="Trạng thái" width="130">
+				<el-table-column prop="departmentName" label="Phòng" min-width="100" />
+				<el-table-column prop="completedDate" label="Ngày HT" width="105" />
+				<el-table-column prop="ratingStatus" label="Trạng thái" width="110">
 					<template #default="{ row }">
 						<el-tag :type="row.rating ? 'success' : 'warning'" size="small">
 							{{ row.rating ? 'Đã đánh giá' : 'Chờ đánh giá' }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="rating" label="Đánh giá" width="150">
+				<el-table-column prop="rating" label="Đánh giá" width="140">
 					<template #default="{ row }">
 						<el-rate
 							v-if="row.rating"
@@ -136,7 +136,7 @@
 						<span v-else class="no-rating">Chưa có</span>
 					</template>
 				</el-table-column>
-				<el-table-column label="Thao tác" width="120" fixed="right">
+				<el-table-column label="Thao tác" width="100" fixed="right">
 					<template #default="{ row }">
 						<el-button
 							type="primary"
@@ -168,9 +168,11 @@
 		<el-dialog
 			v-model="ratingDialogVisible"
 			:title="selectedFeedback?.rating ? 'Chỉnh sửa đánh giá' : 'Đánh giá Bác sĩ'"
-			width="600px"
+			width="700px"
 			class="rating-dialog"
 			:close-on-click-modal="false"
+			draggable
+			top="5vh"
 		>
 			<div class="rating-dialog-content" v-if="selectedFeedback">
 				<!-- Feedback Info -->
@@ -204,6 +206,33 @@
 							<span class="doctor-dept">{{ selectedFeedback.departmentName }}</span>
 						</div>
 					</div>
+				</div>
+
+				<!-- Process History -->
+				<div class="process-history-section" v-if="selectedFeedback.processHistory?.length">
+					<h4 class="section-title">
+						<el-icon><List /></el-icon>
+						Lịch sử xử lý
+					</h4>
+					<el-timeline>
+						<el-timeline-item
+							v-for="(item, index) in selectedFeedback.processHistory"
+							:key="index"
+							:type="getTimelineType(item.action)"
+							:timestamp="item.date"
+							placement="top"
+						>
+							<div class="timeline-content">
+								<div class="timeline-header">
+									<el-tag :type="getActionTagType(item.action)" size="small">
+										{{ item.action }}
+									</el-tag>
+									<span class="timeline-handler">{{ item.handler }}</span>
+								</div>
+								<div class="timeline-note">{{ item.note }}</div>
+							</div>
+						</el-timeline-item>
+					</el-timeline>
 				</div>
 
 				<!-- Rating Form -->
@@ -253,7 +282,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
-	Star, Clock, CircleCheck, TrendCharts, Search, RefreshRight, Edit
+	Star, Clock, CircleCheck, TrendCharts, Search, RefreshRight, Edit, List
 } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
@@ -315,7 +344,13 @@ const mockFeedbackList = [
 		departmentName: 'Nội khoa',
 		completedDate: '20/11/2024',
 		rating: 4,
-		comment: 'Bác sĩ xử lý tốt, giải quyết nhanh chóng'
+		comment: 'Bác sĩ xử lý tốt, giải quyết nhanh chóng',
+		processHistory: [
+			{ date: '18/11/2024 08:30', handler: 'Nguyễn Văn Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận phản ánh từ hotline, chuyển phòng Nội khoa xử lý' },
+			{ date: '18/11/2024 14:00', handler: 'BS. Nguyễn Văn A', action: 'Đang xử lý', note: 'Đã xác minh tình trạng, đang điều phối lại lịch khám' },
+			{ date: '19/11/2024 09:15', handler: 'BS. Nguyễn Văn A', action: 'Xử lý xong', note: 'Đã tăng cường nhân viên, giảm thời gian chờ. Liên hệ bệnh nhân xin lỗi và hẹn khám lại miễn phí' },
+			{ date: '20/11/2024 10:00', handler: 'Trưởng khoa Nội', action: 'Hoàn thành', note: 'Xác nhận đã xử lý xong, bệnh nhân hài lòng' }
+		]
 	},
 	{
 		id: 2,
@@ -327,7 +362,12 @@ const mockFeedbackList = [
 		departmentName: 'Ngoại khoa',
 		completedDate: '21/11/2024',
 		rating: null,
-		comment: null
+		comment: null,
+		processHistory: [
+			{ date: '19/11/2024 10:00', handler: 'Trần Thị Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận từ hộp thư góp ý' },
+			{ date: '19/11/2024 15:30', handler: 'BS. Trần Thị B', action: 'Đang xử lý', note: 'Xác nhận sự việc, đã làm việc với nhân viên liên quan' },
+			{ date: '21/11/2024 08:00', handler: 'BS. Trần Thị B', action: 'Hoàn thành', note: 'Đã nhắc nhở nhân viên, bổ sung đào tạo kỹ năng giao tiếp' }
+		]
 	},
 	{
 		id: 3,
@@ -339,7 +379,11 @@ const mockFeedbackList = [
 		departmentName: 'Da liễu',
 		completedDate: '22/11/2024',
 		rating: 5,
-		comment: 'Xuất sắc!'
+		comment: 'Xuất sắc!',
+		processHistory: [
+			{ date: '21/11/2024 14:00', handler: 'Lê Văn Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận lời khen từ bệnh nhân qua hotline' },
+			{ date: '22/11/2024 09:00', handler: 'BS. Lê Văn C', action: 'Hoàn thành', note: 'Cảm ơn phản hồi tích cực. Đã ghi nhận vào hồ sơ thi đua' }
+		]
 	},
 	{
 		id: 4,
@@ -351,7 +395,13 @@ const mockFeedbackList = [
 		departmentName: 'Sản khoa',
 		completedDate: '23/11/2024',
 		rating: null,
-		comment: null
+		comment: null,
+		processHistory: [
+			{ date: '21/11/2024 16:00', handler: 'Phạm Văn Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận phản ánh trực tiếp tại quầy' },
+			{ date: '22/11/2024 08:00', handler: 'BS. Phạm Thị D', action: 'Đang xử lý', note: 'Đã kiểm tra thực tế, phối hợp bộ phận vệ sinh' },
+			{ date: '22/11/2024 17:00', handler: 'BS. Phạm Thị D', action: 'Xử lý xong', note: 'Đã vệ sinh toàn bộ khu vực, tăng tần suất dọn dẹp' },
+			{ date: '23/11/2024 09:00', handler: 'Trưởng khoa Sản', action: 'Hoàn thành', note: 'Đã nghiệm thu, đạt yêu cầu' }
+		]
 	},
 	{
 		id: 5,
@@ -363,7 +413,12 @@ const mockFeedbackList = [
 		departmentName: 'Nhi khoa',
 		completedDate: '24/11/2024',
 		rating: 3,
-		comment: 'Xử lý ổn'
+		comment: 'Xử lý ổn',
+		processHistory: [
+			{ date: '22/11/2024 09:00', handler: 'Hoàng Văn Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận phản ánh qua email' },
+			{ date: '22/11/2024 14:00', handler: 'BS. Hoàng Văn E', action: 'Đang xử lý', note: 'Đã báo cáo phòng kỹ thuật, đợi sửa chữa' },
+			{ date: '24/11/2024 11:00', handler: 'BS. Hoàng Văn E', action: 'Hoàn thành', note: 'Máy lạnh đã được sửa chữa và hoạt động bình thường' }
+		]
 	},
 	{
 		id: 6,
@@ -375,7 +430,12 @@ const mockFeedbackList = [
 		departmentName: 'Nội khoa',
 		completedDate: '25/11/2024',
 		rating: null,
-		comment: null
+		comment: null,
+		processHistory: [
+			{ date: '23/11/2024 13:30', handler: 'Nguyễn Thị Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận từ hotline' },
+			{ date: '24/11/2024 08:00', handler: 'BS. Nguyễn Văn A', action: 'Đang xử lý', note: 'Đã xác minh với y tá ca trực, ghi nhận sự việc' },
+			{ date: '25/11/2024 09:00', handler: 'BS. Nguyễn Văn A', action: 'Hoàn thành', note: 'Đã nhắc nhở và yêu cầu y tá viết bản kiểm điểm' }
+		]
 	},
 	{
 		id: 7,
@@ -387,7 +447,11 @@ const mockFeedbackList = [
 		departmentName: 'Ngoại khoa',
 		completedDate: '26/11/2024',
 		rating: 5,
-		comment: 'Rất hài lòng với cách giải thích của bác sĩ'
+		comment: 'Rất hài lòng với cách giải thích của bác sĩ',
+		processHistory: [
+			{ date: '25/11/2024 10:00', handler: 'Trần Văn Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận lời khen từ bệnh nhân' },
+			{ date: '26/11/2024 08:00', handler: 'BS. Trần Thị B', action: 'Hoàn thành', note: 'Cảm ơn phản hồi. Ghi nhận thành tích' }
+		]
 	},
 	{
 		id: 8,
@@ -399,7 +463,12 @@ const mockFeedbackList = [
 		departmentName: 'Da liễu',
 		completedDate: '27/11/2024',
 		rating: null,
-		comment: null
+		comment: null,
+		processHistory: [
+			{ date: '25/11/2024 14:00', handler: 'Lê Thị Tiếp Nhận', action: 'Tiếp nhận', note: 'Tiếp nhận phản ánh trực tiếp' },
+			{ date: '26/11/2024 09:00', handler: 'BS. Lê Văn C', action: 'Đang xử lý', note: 'Đã khảo sát thực tế, đề xuất bổ sung ghế' },
+			{ date: '27/11/2024 10:00', handler: 'BS. Lê Văn C', action: 'Hoàn thành', note: 'Đã bổ sung 10 ghế ngồi, sắp xếp lại không gian chờ' }
+		]
 	}
 ]
 
@@ -456,6 +525,27 @@ const handlePageChange = (page) => {
 const handleSizeChange = (size) => {
 	pageSize.value = size
 	fetchData()
+}
+
+// Timeline helper functions
+const getTimelineType = (action) => {
+	const types = {
+		'Tiếp nhận': 'primary',
+		'Đang xử lý': 'warning',
+		'Xử lý xong': 'success',
+		'Hoàn thành': 'success'
+	}
+	return types[action] || 'info'
+}
+
+const getActionTagType = (action) => {
+	const types = {
+		'Tiếp nhận': 'info',
+		'Đang xử lý': 'warning',
+		'Xử lý xong': 'success',
+		'Hoàn thành': 'success'
+	}
+	return types[action] || ''
 }
 
 const openRatingDialog = (row) => {
@@ -620,18 +710,29 @@ onMounted(() => {
 	cursor: pointer;
 }
 
-.text-ellipsis {
+.content-text {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
-	max-width: 250px;
-	display: inline-block;
+	line-height: 1.4;
+	word-break: break-word;
 }
 
 .doctor-cell {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	min-width: 0;
+}
+
+.doctor-name-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+	min-width: 0;
 }
 
 .doctor-avatar {
@@ -729,6 +830,57 @@ onMounted(() => {
 .doctor-dept {
 	font-size: 0.9rem;
 	color: var(--text-secondary);
+}
+
+/* Process History Section */
+.process-history-section {
+	margin-bottom: 24px;
+}
+
+.process-history-section .section-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.process-history-section .section-title .el-icon {
+	font-size: 18px;
+}
+
+.process-history-section :deep(.el-timeline) {
+	padding-left: 8px;
+	max-height: 240px;
+	overflow-y: auto;
+}
+
+.process-history-section :deep(.el-timeline-item__timestamp) {
+	font-size: 12px;
+	color: var(--text-secondary);
+}
+
+.timeline-content {
+	background: var(--bg-hover);
+	padding: 10px 14px;
+	border-radius: var(--radius-md);
+}
+
+.timeline-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+
+.timeline-handler {
+	font-weight: 500;
+	color: var(--text-primary);
+	font-size: 13px;
+}
+
+.timeline-note {
+	font-size: 13px;
+	color: var(--text-secondary);
+	line-height: 1.5;
 }
 
 .rating-form-section {
