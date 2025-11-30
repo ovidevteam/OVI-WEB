@@ -2,7 +2,7 @@
 	<footer class="app-footer">
 		<div class="footer-content">
 			<span class="copyright">
-				© {{ currentYear }} Bệnh viện Y Hà Nội. All rights reserved.
+				© {{ currentYear }} Bệnh viện ĐH Y Hà Nội. All rights reserved.
 			</span>
 			<span class="developed-by">
 				Developed by <a href="#" target="_blank">OVI Team</a>
