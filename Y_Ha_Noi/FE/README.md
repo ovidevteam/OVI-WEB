@@ -95,14 +95,42 @@ npm run preview
 
 ## Biến môi trường
 
-Tạo file `.env` với các biến sau:
+Tạo file `.env` với các biến sau (hoặc copy từ `.env.example`):
 
 ```env
+# Application Configuration
 VITE_APP_TITLE=Quản lý Phản ánh - BV Y Hà Nội
+
+# API Configuration
 VITE_API_BASE_URL=http://localhost:8080/api
+
+# Upload Configuration
 VITE_UPLOAD_MAX_SIZE=5242880
 VITE_UPLOAD_MAX_FILES=10
+
+# Demo Mode (for development/testing without backend)
+# Set to 'true' to enable demo mode, 'false' to use real API
+VITE_DEMO_MODE=false
+
+# Security Configuration
+# Secret key for token encryption (use a strong random string in production)
+VITE_ENCRYPT_SECRET=your-secret-key-change-in-production
 ```
+
+### Giải thích các biến môi trường
+
+- **VITE_APP_TITLE**: Tiêu đề ứng dụng
+- **VITE_API_BASE_URL**: URL base của API backend
+- **VITE_UPLOAD_MAX_SIZE**: Kích thước tối đa của file upload (bytes), mặc định 5MB
+- **VITE_UPLOAD_MAX_FILES**: Số lượng file tối đa có thể upload, mặc định 10
+- **VITE_DEMO_MODE**: Bật/tắt chế độ demo (true/false). Khi bật, ứng dụng sẽ sử dụng dữ liệu demo thay vì gọi API thật
+- **VITE_ENCRYPT_SECRET**: Secret key để mã hóa token trong localStorage. **Quan trọng**: Thay đổi giá trị này trong production!
+
+### Lưu ý
+
+- File `.env` không được commit vào git (đã có trong `.gitignore`)
+- Sử dụng `.env.example` làm template
+- Sau khi thay đổi `.env`, cần restart dev server
 
 ## API Backend
 

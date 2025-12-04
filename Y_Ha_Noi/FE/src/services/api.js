@@ -1,6 +1,7 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
 import router from '@/router'
+import { handleApiError } from '@/utils/errorHandler'
+import { decryptToken } from '@/utils/encryption'
 
 const api = axios.create({
 	baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -13,8 +14,10 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
 	(config) => {
-		const token = localStorage.getItem('token')
-		if (token) {
+		const encryptedToken = localStorage.getItem('token')
+		if (encryptedToken) {
+			// Decrypt token before using
+			const token = decryptToken(encryptedToken)
 			config.headers.Authorization = `Bearer ${token}`
 		}
 		return config
@@ -32,29 +35,15 @@ api.interceptors.response.use(
 	(error) => {
 		const { response } = error
 
-		if (response) {
-			switch (response.status) {
-				case 401:
-					localStorage.removeItem('token')
-					localStorage.removeItem('user')
-					router.push('/login')
-					ElMessage.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-					break
-				case 403:
-					ElMessage.error('Bạn không có quyền thực hiện thao tác này.')
-					break
-				case 404:
-					ElMessage.error('Không tìm thấy dữ liệu.')
-					break
-				case 500:
-					ElMessage.error('Lỗi máy chủ. Vui lòng thử lại sau.')
-					break
-				default:
-					ElMessage.error(response.data?.message || 'Đã có lỗi xảy ra.')
-			}
-		} else {
-			ElMessage.error('Không thể kết nối đến máy chủ.')
+		// Handle 401 - Unauthorized (special case: clear auth and redirect)
+		if (response?.status === 401) {
+			localStorage.removeItem('token')
+			localStorage.removeItem('user')
+			router.push('/login')
 		}
+
+		// Use centralized error handler
+		handleApiError(error, 'API Request')
 
 		return Promise.reject(error)
 	}

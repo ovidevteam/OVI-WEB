@@ -1,5 +1,7 @@
 import api from './api'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 // Demo users for testing without backend
 const DEMO_USERS = {
 	admin: {
@@ -49,6 +51,11 @@ const DEMO_PASSWORDS = {
 
 const authService = {
 	async login(credentials) {
+		// If demo mode is enabled, skip API call
+		if (DEMO_MODE) {
+			return this.demoLogin(credentials)
+		}
+
 		// Try real API first
 		try {
 			return await api.post('/auth/login', credentials)

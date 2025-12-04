@@ -1,6 +1,6 @@
 import api from './api'
 
-const DEMO_MODE = true
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const feedbackService = {
 	async getList(params = {}) {

@@ -17,7 +17,8 @@
     "@element-plus/icons-vue": "^2.3.1",
     "chart.js": "^4.4.4",
     "vue-chartjs": "^5.3.1",
-    "dayjs": "^1.11.13"
+    "dayjs": "^1.11.13",
+    "crypto-js": "^4.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.3",

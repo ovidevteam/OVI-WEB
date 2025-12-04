@@ -1,0 +1,105 @@
+import { ElMessage } from 'element-plus'
+
+/**
+ * Centralized error handling utility
+ * Handles errors consistently across the application
+ *
+ * @param {Error} error - The error object
+ * @param {string} context - Context where the error occurred (e.g., 'Login', 'FetchData')
+ * @param {Object} options - Additional options
+ * @param {boolean} options.showMessage - Whether to show user-friendly message (default: true)
+ * @param {boolean} options.logError - Whether to log error to console (default: true)
+ * @returns {Object} Error information object
+ */
+export function handleError(error, context = '', options = {}) {
+	const {
+		showMessage = true,
+		logError = true
+	} = options
+
+	// Log error in development mode
+	if (logError && import.meta.env.DEV) {
+		console.error(`[${context || 'Error'}]`, error)
+	}
+
+	// Extract error message
+	let message = 'Đã có lỗi xảy ra'
+
+	if (error?.response) {
+		// Axios error with response
+		const { status, data } = error.response
+
+		switch (status) {
+			case 400:
+				message = data?.message || 'Dữ liệu không hợp lệ'
+				break
+			case 401:
+				message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+				break
+			case 403:
+				message = 'Bạn không có quyền thực hiện thao tác này.'
+				break
+			case 404:
+				message = 'Không tìm thấy dữ liệu.'
+				break
+			case 422:
+				message = data?.message || 'Dữ liệu không hợp lệ'
+				break
+			case 500:
+				message = 'Lỗi máy chủ. Vui lòng thử lại sau.'
+				break
+			case 503:
+				message = 'Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.'
+				break
+			default:
+				message = data?.message || error.message || message
+		}
+	} else if (error?.message) {
+		// Standard error with message
+		message = error.message
+	}
+
+	// Show user-friendly message
+	if (showMessage) {
+		ElMessage.error(message)
+	}
+
+	// Return error information for further processing
+	return {
+		message,
+		status: error?.response?.status,
+		code: error?.code,
+		originalError: error
+	}
+}
+
+/**
+ * Handle API errors specifically
+ * @param {Error} error - The error object
+ * @param {string} context - Context where the error occurred
+ * @returns {Object} Error information object
+ */
+export function handleApiError(error, context = '') {
+	return handleError(error, context, {
+		showMessage: true,
+		logError: true
+	})
+}
+
+/**
+ * Handle validation errors
+ * @param {Error} error - The validation error object
+ * @param {string} field - The field name that failed validation
+ * @returns {Object} Error information object
+ */
+export function handleValidationError(error, field = '') {
+	const message = error?.message || `Trường ${field} không hợp lệ`
+	ElMessage.warning(message)
+
+	return {
+		message,
+		field,
+		originalError: error
+	}
+}
+

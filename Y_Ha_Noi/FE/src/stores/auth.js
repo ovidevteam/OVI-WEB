@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import authService from '@/services/authService'
+import { encryptToken, decryptToken } from '@/utils/encryption'
 
 export const useAuthStore = defineStore('auth', () => {
 	const user = ref(null)
@@ -21,7 +22,8 @@ export const useAuthStore = defineStore('auth', () => {
 		const savedToken = localStorage.getItem('token')
 		const savedUser = localStorage.getItem('user')
 		if (savedToken && savedUser) {
-			token.value = savedToken
+			// Decrypt token if it's encrypted
+			token.value = decryptToken(savedToken)
 			user.value = JSON.parse(savedUser)
 		}
 	}
@@ -32,7 +34,8 @@ export const useAuthStore = defineStore('auth', () => {
 			const response = await authService.login(credentials)
 			token.value = response.token
 			user.value = response.user
-			localStorage.setItem('token', response.token)
+			// Encrypt token before storing
+			localStorage.setItem('token', encryptToken(response.token))
 			localStorage.setItem('user', JSON.stringify(response.user))
 			return { success: true }
 		} catch (error) {
