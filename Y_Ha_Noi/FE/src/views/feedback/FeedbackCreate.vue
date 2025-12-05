@@ -143,6 +143,8 @@ import departmentService from '@/services/departmentService'
 import doctorService from '@/services/doctorService'
 import ImageUpload from '@/components/upload/ImageUpload.vue'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const router = useRouter()
 const formRef = ref(null)
 const loading = ref(false)
@@ -186,12 +188,17 @@ const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
 	} catch (error) {
-		departments.value = [
-			{ id: 1, name: 'Nội khoa' },
-			{ id: 2, name: 'Ngoại khoa' },
-			{ id: 3, name: 'Da liễu' },
-			{ id: 4, name: 'Sản khoa' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			departments.value = [
+				{ id: 1, name: 'Nội khoa' },
+				{ id: 2, name: 'Ngoại khoa' },
+				{ id: 3, name: 'Da liễu' },
+				{ id: 4, name: 'Sản khoa' }
+			]
+		} else {
+			console.error('Error fetching departments:', error)
+		}
 	}
 }
 
@@ -201,10 +208,16 @@ const handleDepartmentChange = async (departmentId) => {
 		try {
 			doctors.value = await doctorService.getByDepartment(departmentId)
 		} catch (error) {
-			doctors.value = [
-				{ id: 1, fullName: 'BS. Nguyễn Văn A' },
-				{ id: 2, fullName: 'BS. Trần Thị B' }
-			]
+			if (DEMO_MODE) {
+				// Demo data - only in demo mode
+				doctors.value = [
+					{ id: 1, fullName: 'BS. Nguyễn Văn A' },
+					{ id: 2, fullName: 'BS. Trần Thị B' }
+				]
+			} else {
+				console.error('Error fetching doctors:', error)
+				doctors.value = []
+			}
 		}
 	} else {
 		doctors.value = []

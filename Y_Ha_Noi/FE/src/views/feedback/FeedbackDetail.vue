@@ -102,6 +102,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 // Icons removed - using text-only buttons
 import {
 	formatDateTime, getChannelLabel, getLevelLabel, getLevelType,
@@ -110,6 +111,8 @@ import {
 import feedbackService from '@/services/feedbackService'
 import ImageGallery from '@/components/upload/ImageGallery.vue'
 import FeedbackTimeline from '@/components/feedback/FeedbackTimeline.vue'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const route = useRoute()
 const router = useRouter()
@@ -122,49 +125,54 @@ const fetchFeedback = async () => {
 	try {
 		feedback.value = await feedbackService.getById(route.params.id)
 	} catch (error) {
-		// Demo data
-		feedback.value = {
-			id: 1,
-			code: 'PA-20251127-001',
-			receivedDate: '2025-11-27T09:30:00',
-			channel: 'HOTLINE',
-			content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội khi tiếp nhận bệnh nhân. Nhân viên không nhiệt tình hướng dẫn, khiến bệnh nhân phải chờ đợi lâu.',
-			departmentName: 'Nội khoa',
-			doctorName: 'BS. Nguyễn Văn A',
-			level: 'HIGH',
-			status: 'PROCESSING',
-			receiverName: 'Nguyễn Thị Tiếp nhận',
-			handlerName: 'BS. Nguyễn Văn A',
-			handlerId: 1,
-			images: [
-				{ id: 1, url: 'https://via.placeholder.com/300x200' },
-				{ id: 2, url: 'https://via.placeholder.com/300x200' }
-			],
-			logs: [
-				{
-					id: 1,
-					action: 'CREATE',
-					createdDate: '2025-11-27T09:30:00',
-					userName: 'Nguyễn Thị Tiếp nhận',
-					note: 'Tạo phản ánh mới'
-				},
-				{
-					id: 2,
-					action: 'ASSIGN',
-					createdDate: '2025-11-27T09:35:00',
-					userName: 'Hệ thống',
-					note: 'Phân công cho BS. Nguyễn Văn A'
-				},
-				{
-					id: 3,
-					action: 'STATUS_CHANGE',
-					createdDate: '2025-11-27T10:00:00',
-					userName: 'BS. Nguyễn Văn A',
-					oldStatus: 'NEW',
-					newStatus: 'PROCESSING',
-					note: 'Bắt đầu xử lý'
-				}
-			]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			feedback.value = {
+				id: 1,
+				code: 'PA-20251127-001',
+				receivedDate: '2025-11-27T09:30:00',
+				channel: 'HOTLINE',
+				content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội khi tiếp nhận bệnh nhân. Nhân viên không nhiệt tình hướng dẫn, khiến bệnh nhân phải chờ đợi lâu.',
+				departmentName: 'Nội khoa',
+				doctorName: 'BS. Nguyễn Văn A',
+				level: 'HIGH',
+				status: 'PROCESSING',
+				receiverName: 'Nguyễn Thị Tiếp nhận',
+				handlerName: 'BS. Nguyễn Văn A',
+				handlerId: 1,
+				images: [
+					{ id: 1, url: 'https://via.placeholder.com/300x200' },
+					{ id: 2, url: 'https://via.placeholder.com/300x200' }
+				],
+				logs: [
+					{
+						id: 1,
+						action: 'CREATE',
+						createdDate: '2025-11-27T09:30:00',
+						userName: 'Nguyễn Thị Tiếp nhận',
+						note: 'Tạo phản ánh mới'
+					},
+					{
+						id: 2,
+						action: 'ASSIGN',
+						createdDate: '2025-11-27T09:35:00',
+						userName: 'Hệ thống',
+						note: 'Phân công cho BS. Nguyễn Văn A'
+					},
+					{
+						id: 3,
+						action: 'STATUS_CHANGE',
+						createdDate: '2025-11-27T10:00:00',
+						userName: 'BS. Nguyễn Văn A',
+						oldStatus: 'NEW',
+						newStatus: 'PROCESSING',
+						note: 'Bắt đầu xử lý'
+					}
+				]
+			}
+		} else {
+			console.error('Error fetching feedback:', error)
+			ElMessage.error('Lỗi khi tải chi tiết phản ánh')
 		}
 	} finally {
 		loading.value = false

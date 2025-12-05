@@ -56,14 +56,8 @@ const authService = {
 			return this.demoLogin(credentials)
 		}
 
-		// Try real API first
-		try {
-			return await api.post('/auth/login', credentials)
-		} catch (error) {
-			// Fallback to demo mode if backend not available
-			console.log('Backend not available, using demo mode')
-			return this.demoLogin(credentials)
-		}
+		// Try real API - no fallback if DEMO_MODE is false
+		return await api.post('/auth/login', credentials)
 	},
 
 	demoLogin(credentials) {
@@ -82,29 +76,73 @@ const authService = {
 	},
 
 	async logout() {
-		try {
-			return await api.post('/auth/logout')
-		} catch (error) {
-			// Demo mode - just return success
+		if (DEMO_MODE) {
 			return { success: true }
 		}
+		return await api.post('/auth/logout')
 	},
 
 	async getCurrentUser() {
-		try {
-			return await api.get('/auth/me')
-		} catch (error) {
+		if (DEMO_MODE) {
 			// Return from localStorage in demo mode
 			const savedUser = localStorage.getItem('user')
 			if (savedUser) {
 				return JSON.parse(savedUser)
 			}
-			throw error
+			throw new Error('No user found in demo mode')
 		}
+		return await api.get('/auth/me')
 	},
 
 	async changePassword(data) {
 		return await api.put('/auth/change-password', data)
+	},
+
+	async forgotPassword(email) {
+		if (DEMO_MODE) {
+			// Simulate delay for demo
+			await new Promise(resolve => setTimeout(resolve, 1500))
+			return { success: true, message: 'Email đã được gửi thành công (DEMO)' }
+		}
+		return await api.post('/auth/forgot-password', { email })
+	},
+
+	/**
+	 * Verify if current token is still valid
+	 * @returns {Promise<boolean>} True if token is valid
+	 */
+	async verifyToken() {
+		if (DEMO_MODE) {
+			// In demo mode, check if token exists in localStorage
+			const savedToken = localStorage.getItem('token')
+			return !!savedToken
+		}
+		try {
+			await api.get('/auth/verify')
+			return true
+		} catch {
+			return false
+		}
+	},
+
+	/**
+	 * Refresh access token using refresh token
+	 * @param {string} refreshToken - The refresh token
+	 * @returns {Promise<Object>} New token and user data
+	 */
+	async refreshToken(refreshToken) {
+		if (DEMO_MODE) {
+			// In demo mode, return current user data
+			const savedUser = localStorage.getItem('user')
+			if (savedUser) {
+				return {
+					token: 'demo-token-' + Date.now(),
+					user: JSON.parse(savedUser)
+				}
+			}
+			throw new Error('No user found in demo mode')
+		}
+		return await api.post('/auth/refresh', { refreshToken })
 	}
 }
 

@@ -148,11 +148,13 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { getRoleLabel } from '@/utils/helpers'
+import api from '@/services/api'
+import { mockNotifications } from '@/mock/db'
 import {
 	HomeFilled, Bell, BellFilled, User, Lock, SwitchButton, ArrowDown,
 	ChatDotRound, UserFilled, CircleCheckFilled
@@ -164,55 +166,78 @@ const router = useRouter()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
 
-// Notifications - Mock data
-const notifications = ref([
-	{
-		id: 1,
-		type: 'feedback',
-		title: 'Phản ánh mới',
-		message: 'PA-20251127-001 cần xử lý gấp',
-		time: '5 phút trước',
-		read: false
-	},
-	{
-		id: 2,
-		type: 'assigned',
-		title: 'Được phân công',
-		message: 'Bạn được phân công xử lý PA-20251127-002',
-		time: '1 giờ trước',
-		read: false
-	},
-	{
-		id: 3,
-		type: 'completed',
-		title: 'Hoàn thành',
-		message: 'PA-20251126-003 đã được xử lý xong',
-		time: '2 giờ trước',
-		read: true
-	},
-	{
-		id: 4,
-		type: 'feedback',
-		title: 'Phản ánh mới',
-		message: 'PA-20251125-004 từ khoa Ngoại',
-		time: '1 ngày trước',
-		read: true
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
+// Notifications
+const notifications = ref([])
+
+const fetchNotifications = async () => {
+	if (DEMO_MODE) {
+		// Use mock data from db.js
+		notifications.value = [...mockNotifications]
+		return
 	}
-])
+
+	try {
+		// Call real API - assuming endpoint exists: GET /notifications
+		const response = await api.get('/notifications')
+		notifications.value = response.data || []
+	} catch (error) {
+		console.error('Error fetching notifications:', error)
+		// Don't set to mock data if DEMO_MODE is false
+		notifications.value = []
+	}
+}
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
 
-const markAllRead = () => {
-	notifications.value.forEach(n => n.read = true)
-	ElMessage.success('Đã đánh dấu tất cả là đã đọc')
-}
-
-const handleNotificationClick = (item) => {
-	item.read = true
-	if (item.type === 'feedback' || item.type === 'assigned') {
-		router.push('/feedback/1')
+const markAllRead = async () => {
+	if (DEMO_MODE) {
+		notifications.value.forEach(n => n.read = true)
+		ElMessage.success('Đã đánh dấu tất cả là đã đọc')
+	} else {
+		try {
+			await api.post('/notifications/mark-all-read')
+			notifications.value.forEach(n => n.read = true)
+			ElMessage.success('Đã đánh dấu tất cả là đã đọc')
+		} catch (error) {
+			console.error('Error marking all as read:', error)
+			ElMessage.error('Lỗi khi đánh dấu đã đọc')
+		}
 	}
 }
+
+const handleNotificationClick = async (item) => {
+	if (!DEMO_MODE) {
+		try {
+			// Mark as read via API
+			await api.put(`/notifications/${item.id}/read`)
+		} catch (error) {
+			console.error('Error marking notification as read:', error)
+		}
+	}
+	item.read = true
+	
+	if (item.type === 'feedback' || item.type === 'assigned') {
+		// Navigate to feedback detail if feedbackId is available
+		const feedbackId = item.feedbackId || item.id
+		router.push(`/feedback/${feedbackId}`)
+	}
+}
+
+let notificationInterval = null
+
+onMounted(() => {
+	fetchNotifications()
+	// Refresh notifications periodically (every 30 seconds)
+	notificationInterval = setInterval(fetchNotifications, 30000)
+})
+
+onBeforeUnmount(() => {
+	if (notificationInterval) {
+		clearInterval(notificationInterval)
+	}
+})
 
 // Profile Dialog
 const profileDialogVisible = ref(false)
@@ -445,6 +470,7 @@ const handleCommand = async (command) => {
 }
 
 .notification-item {
+	position: relative;
 	display: flex;
 	gap: 12px;
 	padding: 12px;
@@ -452,6 +478,7 @@ const handleCommand = async (command) => {
 	border-radius: var(--radius-md);
 	cursor: pointer;
 	transition: background-color var(--transition-fast);
+	background-color: transparent;
 }
 
 .notification-item:hover {
@@ -584,4 +611,5 @@ const handleCommand = async (command) => {
 	}
 }
 </style>
+
 

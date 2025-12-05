@@ -151,6 +151,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { ElMessage } from 'element-plus'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
 import { STATUS, LEVELS, PAGE_SIZES } from '@/utils/constants'
 import {
@@ -159,6 +160,8 @@ import {
 } from '@/utils/helpers'
 import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -190,43 +193,47 @@ const fetchData = async () => {
 		total.value = response.total || 0
 	} catch (error) {
 		console.error('Error fetching feedbacks:', error)
-		// Demo data
-		feedbacks.value = [
-			{
-				id: 1,
-				code: 'PA-20251127-001',
-				receivedDate: '2025-11-27',
-				channel: 'HOTLINE',
-				content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội khi tiếp nhận bệnh nhân',
-				departmentName: 'Nội khoa',
-				level: 'HIGH',
-				status: 'NEW',
-				handlerName: 'BS. Nguyễn Văn A'
-			},
-			{
-				id: 2,
-				code: 'PA-20251127-002',
-				receivedDate: '2025-11-27',
-				channel: 'EMAIL',
-				content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu',
-				departmentName: 'Da liễu',
-				level: 'MEDIUM',
-				status: 'PROCESSING',
-				handlerName: 'BS. Trần Thị B'
-			},
-			{
-				id: 3,
-				code: 'PA-20251126-003',
-				receivedDate: '2025-11-26',
-				channel: 'DIRECT',
-				content: 'Cảm ơn bác sĩ đã tận tình điều trị cho bệnh nhân',
-				departmentName: 'Ngoại khoa',
-				level: 'LOW',
-				status: 'COMPLETED',
-				handlerName: 'BS. Lê Văn C'
-			}
-		]
-		total.value = 3
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			feedbacks.value = [
+				{
+					id: 1,
+					code: 'PA-20251127-001',
+					receivedDate: '2025-11-27',
+					channel: 'HOTLINE',
+					content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội khi tiếp nhận bệnh nhân',
+					departmentName: 'Nội khoa',
+					level: 'HIGH',
+					status: 'NEW',
+					handlerName: 'BS. Nguyễn Văn A'
+				},
+				{
+					id: 2,
+					code: 'PA-20251127-002',
+					receivedDate: '2025-11-27',
+					channel: 'EMAIL',
+					content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu',
+					departmentName: 'Da liễu',
+					level: 'MEDIUM',
+					status: 'PROCESSING',
+					handlerName: 'BS. Trần Thị B'
+				},
+				{
+					id: 3,
+					code: 'PA-20251126-003',
+					receivedDate: '2025-11-26',
+					channel: 'DIRECT',
+					content: 'Cảm ơn bác sĩ đã tận tình điều trị cho bệnh nhân',
+					departmentName: 'Ngoại khoa',
+					level: 'LOW',
+					status: 'COMPLETED',
+					handlerName: 'BS. Lê Văn C'
+				}
+			]
+			total.value = 3
+		} else {
+			ElMessage.error('Lỗi khi tải danh sách phản ánh')
+		}
 	} finally {
 		loading.value = false
 	}
@@ -236,13 +243,17 @@ const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
 	} catch (error) {
-		// Demo data
-		departments.value = [
-			{ id: 1, name: 'Nội khoa' },
-			{ id: 2, name: 'Ngoại khoa' },
-			{ id: 3, name: 'Da liễu' },
-			{ id: 4, name: 'Sản khoa' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			departments.value = [
+				{ id: 1, name: 'Nội khoa' },
+				{ id: 2, name: 'Ngoại khoa' },
+				{ id: 3, name: 'Da liễu' },
+				{ id: 4, name: 'Sản khoa' }
+			]
+		} else {
+			console.error('Failed to load departments:', error)
+		}
 	}
 }
 

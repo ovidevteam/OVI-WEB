@@ -112,8 +112,8 @@
 			</template>
 		</el-dialog>
 
-		<!-- Demo Accounts -->
-		<div class="demo-accounts">
+		<!-- Demo Accounts - Only show when DEMO_MODE is enabled -->
+		<div v-if="isDemoMode" class="demo-accounts">
 			<p class="demo-title">Demo Accounts:</p>
 			<div class="demo-list">
 				<span @click="fillDemo('admin', 'admin123')">Admin</span>
@@ -129,12 +129,16 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import authService from '@/services/authService'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Message, CircleCheckFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const formRef = ref(null)
+
+// Check if demo mode is enabled
+const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const form = reactive({
 	username: '',
@@ -207,14 +211,20 @@ const handleForgotPassword = async () => {
 		await forgotFormRef.value.validate()
 		forgotLoading.value = true
 
-		// Mock API call - simulate delay
-		await new Promise(resolve => setTimeout(resolve, 1500))
+		// Call real API
+		const result = await authService.forgotPassword(forgotForm.email)
 
-		// Show success state
-		forgotSuccess.value = true
+		if (result.success) {
+			// Show success state
+			forgotSuccess.value = true
+			ElMessage.success(result.message || 'Email đã được gửi thành công!')
+		} else {
+			ElMessage.error(result.message || 'Gửi email thất bại. Vui lòng thử lại.')
+		}
 		forgotLoading.value = false
-	} catch {
+	} catch (error) {
 		forgotLoading.value = false
+		ElMessage.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
 	}
 }
 

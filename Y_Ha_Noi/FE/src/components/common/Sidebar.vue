@@ -150,25 +150,92 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
+import feedbackService from '@/services/feedbackService'
+import ratingService from '@/services/ratingService'
+import { mockFeedbackStats } from '@/mock/db'
 import {
 	Odometer, ChatDotRound, List, Plus, User, Setting, UserFilled,
 	OfficeBuilding, FirstAidKit, DataAnalysis, TrendCharts, Picture, Star
 } from '@element-plus/icons-vue'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const route = useRoute()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
 
-// Mock data cho badge counts - sau này lấy từ API/store
+// Feedback stats for badge counts
 const feedbackStats = ref({
-	total: 23,       // Tổng PA chưa xử lý (hiển thị trên menu Phản ánh)
-	pending: 15,     // Danh sách chưa xử lý
-	myPending: 5,    // Của tôi đang chờ xử lý
-	needRating: 8    // PA đã hoàn thành cần đánh giá
+	total: 0,       // Tổng PA chưa xử lý (hiển thị trên menu Phản ánh)
+	pending: 0,     // Danh sách chưa xử lý
+	myPending: 0,    // Của tôi đang chờ xử lý
+	needRating: 0    // PA đã hoàn thành cần đánh giá
+})
+
+
+const fetchFeedbackStats = async () => {
+	if (DEMO_MODE) {
+		// Use mock data from db.js
+		feedbackStats.value = { ...mockFeedbackStats }
+		return
+	}
+
+	try {
+		// Fetch pending feedbacks count
+		const pendingResponse = await feedbackService.getList({ status: 'NEW', size: 1 })
+		feedbackStats.value.pending = pendingResponse.total || 0
+
+		// Fetch processing feedbacks count
+		const processingResponse = await feedbackService.getList({ status: 'PROCESSING', size: 1 })
+		const processingCount = processingResponse.total || 0
+		
+		// Total unprocessed = NEW + PROCESSING
+		feedbackStats.value.total = feedbackStats.value.pending + processingCount
+
+		// Fetch my pending feedbacks (if handler)
+		if (authStore.isHandler) {
+			try {
+				const myFeedbacks = await feedbackService.getMyFeedbacks()
+				feedbackStats.value.myPending = myFeedbacks.filter(f => f.status === 'NEW').length || 0
+			} catch (error) {
+				console.error('Error fetching my feedbacks:', error)
+			}
+		}
+
+		// Fetch completed feedbacks needing rating
+		if (authStore.hasRole(['ADMIN', 'LEADER', 'HANDLER'])) {
+			try {
+				const completedResponse = await ratingService.getCompletedFeedbacks({ 
+					hasRating: false, 
+					size: 1 
+				})
+				feedbackStats.value.needRating = completedResponse.total || 0
+			} catch (error) {
+				console.error('Error fetching ratings:', error)
+			}
+		}
+	} catch (error) {
+		console.error('Error fetching feedback stats:', error)
+		// Don't set to mock data if DEMO_MODE is false
+	}
+}
+
+let statsInterval = null
+
+onMounted(() => {
+	fetchFeedbackStats()
+	// Refresh stats periodically (every 30 seconds)
+	statsInterval = setInterval(fetchFeedbackStats, 30000)
+})
+
+onBeforeUnmount(() => {
+	if (statsInterval) {
+		clearInterval(statsInterval)
+	}
 })
 
 const hasSquareLogo = ref(true) // Logo vuông đã được cung cấp

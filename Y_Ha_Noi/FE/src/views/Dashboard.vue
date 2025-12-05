@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
 	ChatDotRound, Loading, CircleCheck, Warning,
@@ -136,8 +136,17 @@ import {
 } from '@element-plus/icons-vue'
 import { formatDate, truncate, getLevelLabel, getLevelType, getStatusLabel, getStatusType } from '@/utils/helpers'
 import reportService from '@/services/reportService'
+import feedbackService from '@/services/feedbackService'
 import LineChart from '@/components/charts/LineChart.vue'
 import BarChart from '@/components/charts/BarChart.vue'
+import {
+	mockDashboardStats,
+	mockMonthlyStats,
+	mockDepartmentStats,
+	mockFeedbacks
+} from '@/mock/db'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const router = useRouter()
 
@@ -158,7 +167,7 @@ const monthlyData = ref({
 	labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
 	datasets: [{
 		label: 'Phản ánh',
-		data: [12, 19, 15, 25, 22, 30, 28, 35, 40, 33, 45, 38],
+		data: [],
 		borderColor: '#0d6efd',
 		backgroundColor: 'rgba(13, 110, 253, 0.1)',
 		fill: true,
@@ -167,10 +176,10 @@ const monthlyData = ref({
 })
 
 const departmentData = ref({
-	labels: ['Nội khoa', 'Ngoại khoa', 'Cấp cứu', 'Sản khoa', 'Nhi khoa'],
+	labels: [],
 	datasets: [{
 		label: 'Số phản ánh',
-		data: [65, 45, 38, 30, 25],
+		data: [],
 		backgroundColor: [
 			'rgba(13, 110, 253, 0.8)',
 			'rgba(25, 135, 84, 0.8)',
@@ -181,35 +190,7 @@ const departmentData = ref({
 	}]
 })
 
-const recentFeedbacks = ref([
-	{
-		id: 1,
-		code: 'PA-20251127-001',
-		receivedDate: '2025-11-27',
-		content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội',
-		departmentName: 'Nội khoa',
-		level: 'HIGH',
-		status: 'NEW'
-	},
-	{
-		id: 2,
-		code: 'PA-20251127-002',
-		receivedDate: '2025-11-27',
-		content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu',
-		departmentName: 'Da liễu',
-		level: 'MEDIUM',
-		status: 'PROCESSING'
-	},
-	{
-		id: 3,
-		code: 'PA-20251126-003',
-		receivedDate: '2025-11-26',
-		content: 'Cảm ơn bác sĩ đã tận tình điều trị cho bệnh nhân',
-		departmentName: 'Ngoại khoa',
-		level: 'LOW',
-		status: 'COMPLETED'
-	}
-])
+const recentFeedbacks = ref([])
 
 const goToList = () => {
 	router.push('/feedback')
@@ -219,12 +200,69 @@ const viewDetail = (id) => {
 	router.push(`/feedback/${id}`)
 }
 
-onMounted(async () => {
-	// TODO: Fetch real data from API
-	stats.total = 156
-	stats.processing = 23
-	stats.completed = 128
-	stats.overdue = 5
+const loadDashboardData = async () => {
+	if (DEMO_MODE) {
+		// Demo data - use mock data from db.js
+		Object.assign(stats, mockDashboardStats)
+		monthlyData.value.datasets[0].data = mockMonthlyStats
+		departmentData.value.labels = mockDepartmentStats.map(d => d.departmentName)
+		departmentData.value.datasets[0].data = mockDepartmentStats.map(d => d.count)
+		recentFeedbacks.value = mockFeedbacks.slice(0, 5)
+		return
+	}
+
+	try {
+		// Load dashboard stats
+		const dashboardData = await reportService.getDashboard()
+		if (dashboardData) {
+			stats.total = dashboardData.total || 0
+			stats.processing = dashboardData.processing || 0
+			stats.completed = dashboardData.completed || 0
+			stats.overdue = dashboardData.overdue || 0
+		}
+	} catch (error) {
+		console.error('Failed to load dashboard stats:', error)
+	}
+
+	try {
+		// Load monthly stats
+		const monthlyStats = await reportService.getMonthlyStats(selectedYear.value)
+		if (monthlyStats && monthlyStats.data) {
+			monthlyData.value.datasets[0].data = monthlyStats.data
+		}
+	} catch (error) {
+		console.error('Failed to load monthly stats:', error)
+	}
+
+	try {
+		// Load department stats (top 5)
+		const deptStats = await reportService.getByDepartment({ limit: 5 })
+		if (deptStats && deptStats.data) {
+			departmentData.value.labels = deptStats.data.map(d => d.departmentName)
+			departmentData.value.datasets[0].data = deptStats.data.map(d => d.count)
+		}
+	} catch (error) {
+		console.error('Failed to load department stats:', error)
+	}
+
+	try {
+		// Load recent feedbacks
+		const feedbacks = await feedbackService.getList({ page: 1, size: 5, sort: 'receivedDate,desc' })
+		if (feedbacks && feedbacks.data) {
+			recentFeedbacks.value = feedbacks.data
+		}
+	} catch (error) {
+		console.error('Failed to load recent feedbacks:', error)
+	}
+}
+
+onMounted(() => {
+	loadDashboardData()
+})
+
+// Watch year change
+watch(selectedYear, () => {
+	loadDashboardData()
 })
 </script>
 
@@ -252,6 +290,7 @@ onMounted(async () => {
 .content-cell {
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 	text-overflow: ellipsis;

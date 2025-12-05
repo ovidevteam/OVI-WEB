@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 import api from '@/services/api'
 import { handleApiError } from '@/utils/errorHandler'
@@ -133,6 +133,64 @@ export function useSingleRequest(requestFn) {
 		execute,
 		isPending,
 		error
+	}
+}
+
+/**
+ * Composable for managing API requests with loading and error states
+ * Provides consistent loading/error handling across components
+ *
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.autoCancel - Whether to auto-cancel on unmount (default: true)
+ * @param {boolean} options.showError - Whether to show error messages (default: true)
+ * @returns {Object} API request utilities with loading and error states
+ *
+ * @example
+ * const { loading, error, execute, reset } = useApiRequestState()
+ *
+ * const fetchData = async () => {
+ *   const data = await execute(() => api.get('/feedbacks'))
+ * }
+ */
+export function useApiRequestState(options = {}) {
+	const { autoCancel = true, showError = true } = options
+	const { request, cancel, clearError, isPending, error } = useApiRequest({ autoCancel })
+
+	const loading = isPending
+	const hasError = computed(() => !!error.value)
+
+	/**
+	 * Execute an API request
+	 * @param {Function} requestFn - Function that returns a promise
+	 * @param {Object} config - Additional axios config
+	 * @returns {Promise} The request promise
+	 */
+	const execute = async (requestFn, config = {}) => {
+		try {
+			clearError()
+			return await request(requestFn, config)
+		} catch (err) {
+			if (showError && err) {
+				// Error is already handled by useApiRequest
+			}
+			throw err
+		}
+	}
+
+	/**
+	 * Reset error state
+	 */
+	const reset = () => {
+		clearError()
+	}
+
+	return {
+		loading,
+		error,
+		hasError,
+		execute,
+		cancel,
+		reset
 	}
 }
 

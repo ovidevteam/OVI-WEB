@@ -279,6 +279,8 @@ import {
 import { formatDate, truncate, getLevelLabel, getLevelType } from '@/utils/helpers'
 import feedbackService from '@/services/feedbackService'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const router = useRouter()
 const loading = ref(false)
 const submitting = ref(false)
@@ -334,49 +336,54 @@ const fetchData = async () => {
 	try {
 		feedbacks.value = await feedbackService.getMyFeedbacks()
 	} catch (error) {
-		// Demo data
-		feedbacks.value = [
-			{
-				id: 1,
-				code: 'PA-20251127-001',
-				receivedDate: '2025-11-27',
-				content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội',
-				departmentName: 'Nội khoa',
-				level: 'HIGH',
-				status: 'NEW',
-				isOverdue: false
-			},
-			{
-				id: 2,
-				code: 'PA-20251124-005',
-				receivedDate: '2025-11-24',
-				content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu',
-				departmentName: 'Da liễu',
-				level: 'CRITICAL',
-				status: 'NEW',
-				isOverdue: true
-			},
-			{
-				id: 3,
-				code: 'PA-20251126-003',
-				receivedDate: '2025-11-26',
-				content: 'Cơ sở vật chất phòng khám cần được nâng cấp',
-				departmentName: 'Ngoại khoa',
-				level: 'MEDIUM',
-				status: 'PROCESSING',
-				isOverdue: false
-			},
-			{
-				id: 4,
-				code: 'PA-20251120-002',
-				receivedDate: '2025-11-20',
-				content: 'Khen ngợi bác sĩ khoa Ngoại điều trị nhiệt tình',
-				departmentName: 'Ngoại khoa',
-				level: 'LOW',
-				status: 'COMPLETED',
-				isOverdue: false
-			}
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			feedbacks.value = [
+				{
+					id: 1,
+					code: 'PA-20251127-001',
+					receivedDate: '2025-11-27',
+					content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội',
+					departmentName: 'Nội khoa',
+					level: 'HIGH',
+					status: 'NEW',
+					isOverdue: false
+				},
+				{
+					id: 2,
+					code: 'PA-20251124-005',
+					receivedDate: '2025-11-24',
+					content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu',
+					departmentName: 'Da liễu',
+					level: 'CRITICAL',
+					status: 'NEW',
+					isOverdue: true
+				},
+				{
+					id: 3,
+					code: 'PA-20251126-003',
+					receivedDate: '2025-11-26',
+					content: 'Cơ sở vật chất phòng khám cần được nâng cấp',
+					departmentName: 'Ngoại khoa',
+					level: 'MEDIUM',
+					status: 'PROCESSING',
+					isOverdue: false
+				},
+				{
+					id: 4,
+					code: 'PA-20251120-002',
+					receivedDate: '2025-11-20',
+					content: 'Khen ngợi bác sĩ khoa Ngoại điều trị nhiệt tình',
+					departmentName: 'Ngoại khoa',
+					level: 'LOW',
+					status: 'COMPLETED',
+					isOverdue: false
+				}
+			]
+		} else {
+			console.error('Error fetching my feedbacks:', error)
+			ElMessage.error('Lỗi khi tải danh sách phản ánh của tôi')
+		}
 	} finally {
 		loading.value = false
 		updateStats()
@@ -407,24 +414,25 @@ const openProcessDialog = async (feedback) => {
 	try {
 		processHistory.value = await feedbackService.getProcessHistory(feedback.id)
 	} catch (error) {
-		// Mock history data
-		if (feedback.status === 'PROCESSING') {
-			processHistory.value = [
-				{
-					timestamp: '27/11/2025 10:30',
-					handlerName: 'Nguyễn Văn A',
-					status: 'PROCESSING',
-					content: 'Đã tiếp nhận phản ánh và đang liên hệ phòng ban liên quan để xác minh.',
-					attachments: []
-				}
-			]
-		} else if (feedback.status === 'COMPLETED') {
-			processHistory.value = [
-				{
-					timestamp: '20/11/2025 09:00',
-					handlerName: 'Admin',
-					status: 'NEW',
-					content: 'Tiếp nhận phản ánh từ khách hàng.',
+		if (DEMO_MODE) {
+			// Mock history data - only in demo mode
+			if (feedback.status === 'PROCESSING') {
+				processHistory.value = [
+					{
+						timestamp: '27/11/2025 10:30',
+						handlerName: 'Nguyễn Văn A',
+						status: 'PROCESSING',
+						content: 'Đã tiếp nhận phản ánh và đang liên hệ phòng ban liên quan để xác minh.',
+						attachments: []
+					}
+				]
+			} else if (feedback.status === 'COMPLETED') {
+				processHistory.value = [
+					{
+						timestamp: '20/11/2025 09:00',
+						handlerName: 'Admin',
+						status: 'NEW',
+						content: 'Tiếp nhận phản ánh từ khách hàng.',
 					attachments: []
 				},
 				{
@@ -443,6 +451,10 @@ const openProcessDialog = async (feedback) => {
 				}
 			]
 		} else {
+			processHistory.value = []
+		}
+		} else {
+			console.error('Error fetching process history:', error)
 			processHistory.value = []
 		}
 	}

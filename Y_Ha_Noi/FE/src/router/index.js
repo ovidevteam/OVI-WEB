@@ -131,20 +131,45 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
 	const authStore = useAuthStore()
 	const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
 	const allowedRoles = to.meta.roles
 
+	// If route requires auth, verify token validity
+	if (requiresAuth && authStore.isAuthenticated) {
+		const isValid = await authStore.verifyToken()
+		if (!isValid) {
+			// Token invalid, redirect to login
+			next('/login')
+			return
+		}
+	}
+
+	// Check authentication
 	if (requiresAuth && !authStore.isAuthenticated) {
 		next('/login')
-	} else if (to.path === '/login' && authStore.isAuthenticated) {
-		next('/dashboard')
-	} else if (allowedRoles && !allowedRoles.includes(authStore.user?.role)) {
-		next('/dashboard')
-	} else {
-		next()
+		return
 	}
+
+	// Redirect authenticated users away from login
+	if (to.path === '/login' && authStore.isAuthenticated) {
+		next('/dashboard')
+		return
+	}
+
+	// Check role permissions
+	if (allowedRoles && !allowedRoles.includes(authStore.user?.role)) {
+		next('/dashboard')
+		return
+	}
+
+	// Update activity on navigation
+	if (authStore.isAuthenticated) {
+		authStore.updateActivity()
+	}
+
+	next()
 })
 
 export default router

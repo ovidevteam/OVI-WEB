@@ -86,6 +86,8 @@ import { Plus } from '@element-plus/icons-vue'
 import departmentService from '@/services/departmentService'
 import userService from '@/services/userService'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const loading = ref(false)
 const saveLoading = ref(false)
 const departments = ref([])
@@ -120,11 +122,17 @@ const fetchData = async () => {
 	try {
 		departments.value = await departmentService.getList()
 	} catch (error) {
-		departments.value = [
-			{ id: 1, code: 'PB-001', name: 'Nội khoa', managerName: 'BS. Nguyễn Văn A', defaultHandlerName: 'BS. Nguyễn Văn A', notificationEmail: 'noikhoa@bvyhanoi.vn', status: 'ACTIVE' },
-			{ id: 2, code: 'PB-002', name: 'Ngoại khoa', managerName: 'BS. Trần Văn B', defaultHandlerName: 'BS. Trần Văn B', notificationEmail: 'ngoaikhoa@bvyhanoi.vn', status: 'ACTIVE' },
-			{ id: 3, code: 'PB-003', name: 'Sản khoa', managerName: 'BS. Lê Thị C', defaultHandlerName: 'BS. Lê Thị C', notificationEmail: 'sankhoa@bvyhanoi.vn', status: 'ACTIVE' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			departments.value = [
+				{ id: 1, code: 'PB-001', name: 'Nội khoa', managerName: 'BS. Nguyễn Văn A', defaultHandlerName: 'BS. Nguyễn Văn A', notificationEmail: 'noikhoa@bvyhanoi.vn', status: 'ACTIVE' },
+				{ id: 2, code: 'PB-002', name: 'Ngoại khoa', managerName: 'BS. Trần Văn B', defaultHandlerName: 'BS. Trần Văn B', notificationEmail: 'ngoaikhoa@bvyhanoi.vn', status: 'ACTIVE' },
+				{ id: 3, code: 'PB-003', name: 'Sản khoa', managerName: 'BS. Lê Thị C', defaultHandlerName: 'BS. Lê Thị C', notificationEmail: 'sankhoa@bvyhanoi.vn', status: 'ACTIVE' }
+			]
+		} else {
+			console.error('Error fetching departments:', error)
+			ElMessage.error('Lỗi khi tải danh sách phòng ban')
+		}
 	} finally {
 		loading.value = false
 	}
@@ -136,11 +144,16 @@ const fetchUsers = async () => {
 		users.value = response.data || []
 		handlers.value = users.value.filter(u => u.role === 'HANDLER')
 	} catch (error) {
-		users.value = [
-			{ id: 1, fullName: 'BS. Nguyễn Văn A' },
-			{ id: 2, fullName: 'BS. Trần Văn B' }
-		]
-		handlers.value = users.value
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			users.value = [
+				{ id: 1, fullName: 'BS. Nguyễn Văn A' },
+				{ id: 2, fullName: 'BS. Trần Văn B' }
+			]
+			handlers.value = users.value
+		} else {
+			console.error('Error fetching users:', error)
+		}
 	}
 }
 

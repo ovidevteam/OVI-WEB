@@ -120,6 +120,8 @@ import { SPECIALTIES } from '@/utils/constants'
 import doctorService from '@/services/doctorService'
 import departmentService from '@/services/departmentService'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const loading = ref(false)
 const saveLoading = ref(false)
 const doctors = ref([])
@@ -172,12 +174,18 @@ const fetchData = async () => {
 		doctors.value = response.data || []
 		total.value = response.total || 0
 	} catch (error) {
-		doctors.value = [
-			{ id: 1, code: 'BS-001', fullName: 'BS. Nguyễn Văn A', specialty: 'Nội khoa', departmentName: 'Nội khoa', email: 'bsa@bvyhanoi.vn', phone: '0912345678', status: 'ACTIVE' },
-			{ id: 2, code: 'BS-002', fullName: 'BS. Trần Thị B', specialty: 'Ngoại khoa', departmentName: 'Ngoại khoa', email: 'bsb@bvyhanoi.vn', phone: '0987654321', status: 'ACTIVE' },
-			{ id: 3, code: 'BS-003', fullName: 'BS. Lê Văn C', specialty: 'Da liễu', departmentName: 'Da liễu', email: 'bsc@bvyhanoi.vn', phone: '0909090909', status: 'ACTIVE' }
-		]
-		total.value = 3
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			doctors.value = [
+				{ id: 1, code: 'BS-001', fullName: 'BS. Nguyễn Văn A', specialty: 'Nội khoa', departmentName: 'Nội khoa', email: 'bsa@bvyhanoi.vn', phone: '0912345678', status: 'ACTIVE' },
+				{ id: 2, code: 'BS-002', fullName: 'BS. Trần Thị B', specialty: 'Ngoại khoa', departmentName: 'Ngoại khoa', email: 'bsb@bvyhanoi.vn', phone: '0987654321', status: 'ACTIVE' },
+				{ id: 3, code: 'BS-003', fullName: 'BS. Lê Văn C', specialty: 'Da liễu', departmentName: 'Da liễu', email: 'bsc@bvyhanoi.vn', phone: '0909090909', status: 'ACTIVE' }
+			]
+			total.value = 3
+		} else {
+			console.error('Error fetching doctors:', error)
+			ElMessage.error('Lỗi khi tải danh sách bác sĩ')
+		}
 	} finally {
 		loading.value = false
 	}
@@ -187,11 +195,16 @@ const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
 	} catch (error) {
-		departments.value = [
-			{ id: 1, name: 'Nội khoa' },
-			{ id: 2, name: 'Ngoại khoa' },
-			{ id: 3, name: 'Da liễu' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			departments.value = [
+				{ id: 1, name: 'Nội khoa' },
+				{ id: 2, name: 'Ngoại khoa' },
+				{ id: 3, name: 'Da liễu' }
+			]
+		} else {
+			console.error('Error fetching departments:', error)
+		}
 	}
 }
 

@@ -281,9 +281,13 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import ratingService from '@/services/ratingService'
+import departmentService from '@/services/departmentService'
 import {
 	Star, Clock, CircleCheck, TrendCharts, Search, RefreshRight, Edit, List
 } from '@element-plus/icons-vue'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const authStore = useAuthStore()
 
@@ -299,20 +303,14 @@ const filterStatus = ref(null)
 const filterDepartment = ref(null)
 const filterDateRange = ref([])
 
-const departments = ref([
-	{ id: 1, name: 'Nội khoa' },
-	{ id: 2, name: 'Ngoại khoa' },
-	{ id: 3, name: 'Da liễu' },
-	{ id: 4, name: 'Sản khoa' },
-	{ id: 5, name: 'Nhi khoa' }
-])
+const departments = ref([])
 
 // Stats
 const stats = reactive({
-	total: 45,
-	pending: 8,
-	rated: 37,
-	avgRating: 4.2
+	total: 0,
+	pending: 0,
+	rated: 0,
+	avgRating: 0
 })
 
 // Rating dialog
@@ -475,38 +473,103 @@ const mockFeedbackList = [
 const fetchData = async () => {
 	loading.value = true
 	try {
-		// Simulate API call
-		await new Promise(resolve => setTimeout(resolve, 500))
+		if (DEMO_MODE) {
+			// Use mock data in demo mode
+			await new Promise(resolve => setTimeout(resolve, 500))
 
-		let filtered = [...mockFeedbackList]
+			let filtered = [...mockFeedbackList]
 
-		// Apply filters
-		if (filterStatus.value === 'pending') {
-			filtered = filtered.filter(f => !f.rating)
-		} else if (filterStatus.value === 'rated') {
-			filtered = filtered.filter(f => f.rating)
+			// Apply filters
+			if (filterStatus.value === 'pending') {
+				filtered = filtered.filter(f => !f.rating)
+			} else if (filterStatus.value === 'rated') {
+				filtered = filtered.filter(f => f.rating)
+			}
+
+			if (filterDepartment.value) {
+				filtered = filtered.filter(f => f.departmentId === filterDepartment.value)
+			}
+
+			feedbackList.value = filtered
+			total.value = filtered.length
+
+			// Update stats
+			stats.total = mockFeedbackList.length
+			stats.pending = mockFeedbackList.filter(f => !f.rating).length
+			stats.rated = mockFeedbackList.filter(f => f.rating).length
+			const ratedItems = mockFeedbackList.filter(f => f.rating)
+			stats.avgRating = ratedItems.length > 0
+				? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
+				: 0
+		} else {
+			// Call real API
+			const params = {
+				page: currentPage.value,
+				size: pageSize.value
+			}
+
+			if (filterStatus.value === 'pending') {
+				params.hasRating = false
+			} else if (filterStatus.value === 'rated') {
+				params.hasRating = true
+			}
+
+			if (filterDepartment.value) {
+				params.departmentId = filterDepartment.value
+			}
+
+			if (filterDateRange.value && filterDateRange.value.length === 2) {
+				params.dateFrom = filterDateRange.value[0]
+				params.dateTo = filterDateRange.value[1]
+			}
+
+			const response = await ratingService.getCompletedFeedbacks(params)
+			
+			if (response && response.data) {
+				feedbackList.value = response.data
+				total.value = response.total || response.data.length
+				
+				// Update stats from response
+				if (response.stats) {
+					stats.total = response.stats.total || 0
+					stats.pending = response.stats.pending || 0
+					stats.rated = response.stats.rated || 0
+					stats.avgRating = response.stats.avgRating || 0
+				} else {
+					// Calculate stats from data
+					stats.total = response.total || response.data.length
+					stats.pending = response.data.filter(f => !f.rating).length
+					stats.rated = response.data.filter(f => f.rating).length
+					const ratedItems = response.data.filter(f => f.rating)
+					stats.avgRating = ratedItems.length > 0
+						? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
+						: 0
+				}
+			}
 		}
-
-		if (filterDepartment.value) {
-			filtered = filtered.filter(f => f.departmentId === filterDepartment.value)
-		}
-
-		feedbackList.value = filtered
-		total.value = filtered.length
-
-		// Update stats
-		stats.total = mockFeedbackList.length
-		stats.pending = mockFeedbackList.filter(f => !f.rating).length
-		stats.rated = mockFeedbackList.filter(f => f.rating).length
-		const ratedItems = mockFeedbackList.filter(f => f.rating)
-		stats.avgRating = ratedItems.length > 0
-			? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
-			: 0
 	} catch (error) {
 		ElMessage.error('Lỗi khi tải dữ liệu')
 		console.error(error)
 	} finally {
 		loading.value = false
+	}
+}
+
+const fetchDepartments = async () => {
+	if (DEMO_MODE) {
+		departments.value = [
+			{ id: 1, name: 'Nội khoa' },
+			{ id: 2, name: 'Ngoại khoa' },
+			{ id: 3, name: 'Da liễu' },
+			{ id: 4, name: 'Sản khoa' },
+			{ id: 5, name: 'Nhi khoa' }
+		]
+	} else {
+		try {
+			departments.value = await departmentService.getActiveList()
+		} catch (error) {
+			console.error('Failed to load departments:', error)
+		}
 	}
 }
 
@@ -562,36 +625,63 @@ const submitRating = async () => {
 		await ratingFormRef.value.validate()
 		submitting.value = true
 
-		// Simulate API call
-		await new Promise(resolve => setTimeout(resolve, 800))
+		if (DEMO_MODE) {
+			// Simulate API call in demo mode
+			await new Promise(resolve => setTimeout(resolve, 800))
 
-		// Update local data
-		const index = feedbackList.value.findIndex(f => f.id === selectedFeedback.value.id)
-		if (index !== -1) {
-			feedbackList.value[index].rating = ratingForm.rating
-			feedbackList.value[index].comment = ratingForm.comment
+			// Update local data
+			const index = feedbackList.value.findIndex(f => f.id === selectedFeedback.value.id)
+			if (index !== -1) {
+				feedbackList.value[index].rating = ratingForm.rating
+				feedbackList.value[index].comment = ratingForm.comment
+			}
+
+			// Also update mock data
+			const mockIndex = mockFeedbackList.findIndex(f => f.id === selectedFeedback.value.id)
+			if (mockIndex !== -1) {
+				mockFeedbackList[mockIndex].rating = ratingForm.rating
+				mockFeedbackList[mockIndex].comment = ratingForm.comment
+			}
+
+			ElMessage.success(selectedFeedback.value.rating ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
+			ratingDialogVisible.value = false
+
+			// Refresh stats
+			stats.pending = mockFeedbackList.filter(f => !f.rating).length
+			stats.rated = mockFeedbackList.filter(f => f.rating).length
+			const ratedItems = mockFeedbackList.filter(f => f.rating)
+			stats.avgRating = ratedItems.length > 0
+				? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
+				: 0
+		} else {
+			// Call real API
+			const ratingData = {
+				feedbackId: selectedFeedback.value.id,
+				doctorId: selectedFeedback.value.doctorId,
+				rating: ratingForm.rating,
+				comment: ratingForm.comment
+			}
+
+			if (selectedFeedback.value.rating) {
+				// Update existing rating
+				const existingRating = await ratingService.getRatingByFeedback(selectedFeedback.value.id)
+				if (existingRating && existingRating.id) {
+					await ratingService.updateRating(existingRating.id, ratingData)
+				}
+			} else {
+				// Submit new rating
+				await ratingService.submitRating(ratingData)
+			}
+
+			ElMessage.success(selectedFeedback.value.rating ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
+			ratingDialogVisible.value = false
+
+			// Refresh data
+			await fetchData()
 		}
-
-		// Also update mock data
-		const mockIndex = mockFeedbackList.findIndex(f => f.id === selectedFeedback.value.id)
-		if (mockIndex !== -1) {
-			mockFeedbackList[mockIndex].rating = ratingForm.rating
-			mockFeedbackList[mockIndex].comment = ratingForm.comment
-		}
-
-		ElMessage.success(selectedFeedback.value.rating ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
-		ratingDialogVisible.value = false
-
-		// Refresh stats
-		stats.pending = mockFeedbackList.filter(f => !f.rating).length
-		stats.rated = mockFeedbackList.filter(f => f.rating).length
-		const ratedItems = mockFeedbackList.filter(f => f.rating)
-		stats.avgRating = ratedItems.length > 0
-			? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
-			: 0
 	} catch (error) {
 		if (error !== false) {
-			ElMessage.error('Có lỗi xảy ra. Vui lòng thử lại.')
+			ElMessage.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
 		}
 	} finally {
 		submitting.value = false
@@ -599,6 +689,7 @@ const submitRating = async () => {
 }
 
 onMounted(() => {
+	fetchDepartments()
 	fetchData()
 })
 </script>

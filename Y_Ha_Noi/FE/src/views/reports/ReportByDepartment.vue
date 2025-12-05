@@ -237,6 +237,8 @@ import reportService from '@/services/reportService'
 import { downloadBlob } from '@/utils/helpers'
 import BarChart from '@/components/charts/BarChart.vue'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const router = useRouter()
 const loading = ref(false)
 const detailLoading = ref(false)
@@ -292,18 +294,23 @@ const fetchData = async () => {
 		reportData.value = response.data || []
 		Object.assign(summary, response.summary || {})
 	} catch (error) {
-		// Demo data
-		reportData.value = [
-			{ id: 1, departmentName: 'Nội khoa', total: 45, pending: 5, processing: 8, completed: 32, overdue: 2, avgDays: 2.3, completionRate: 71 },
-			{ id: 2, departmentName: 'Ngoại khoa', total: 38, pending: 3, processing: 5, completed: 30, overdue: 1, avgDays: 1.8, completionRate: 79 },
-			{ id: 3, departmentName: 'Da liễu', total: 25, pending: 2, processing: 3, completed: 20, overdue: 0, avgDays: 1.5, completionRate: 80 },
-			{ id: 4, departmentName: 'Sản khoa', total: 30, pending: 4, processing: 6, completed: 20, overdue: 3, avgDays: 2.8, completionRate: 67 },
-			{ id: 5, departmentName: 'Nhi khoa', total: 22, pending: 1, processing: 2, completed: 19, overdue: 0, avgDays: 1.2, completionRate: 86 }
-		]
-		summary.total = 160
-		summary.completed = 121
-		summary.processing = 24
-		summary.avgTime = 2.1
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			reportData.value = [
+				{ id: 1, departmentName: 'Nội khoa', total: 45, pending: 5, processing: 8, completed: 32, overdue: 2, avgDays: 2.3, completionRate: 71 },
+				{ id: 2, departmentName: 'Ngoại khoa', total: 38, pending: 3, processing: 5, completed: 30, overdue: 1, avgDays: 1.8, completionRate: 79 },
+				{ id: 3, departmentName: 'Da liễu', total: 25, pending: 2, processing: 3, completed: 20, overdue: 0, avgDays: 1.5, completionRate: 80 },
+				{ id: 4, departmentName: 'Sản khoa', total: 30, pending: 4, processing: 6, completed: 20, overdue: 3, avgDays: 2.8, completionRate: 67 },
+				{ id: 5, departmentName: 'Nhi khoa', total: 22, pending: 1, processing: 2, completed: 19, overdue: 0, avgDays: 1.2, completionRate: 86 }
+			]
+			summary.total = 160
+			summary.completed = 121
+			summary.processing = 24
+			summary.avgTime = 2.1
+		} else {
+			console.error('Error fetching report data:', error)
+			ElMessage.error('Lỗi khi tải báo cáo theo phòng ban')
+		}
 	} finally {
 		loading.value = false
 	}
@@ -322,14 +329,19 @@ const fetchDepartmentDetail = async (departmentId) => {
 		const response = await reportService.getDepartmentFeedbacks(departmentId)
 		detailFeedbacks.value = response.data || []
 	} catch (error) {
-		// Demo data
-		detailFeedbacks.value = [
-			{ id: 1, code: 'PA-2024-001', content: 'Thời gian chờ khám quá lâu, bệnh nhân phải đợi hơn 2 tiếng', status: 'COMPLETED', createdDate: '15/11/2024', handlerName: 'BS. Nguyễn Văn A' },
-			{ id: 2, code: 'PA-2024-002', content: 'Nhân viên lễ tân thiếu thân thiện với bệnh nhân cao tuổi', status: 'PROCESSING', createdDate: '16/11/2024', handlerName: 'Trần Thị B' },
-			{ id: 3, code: 'PA-2024-003', content: 'Phòng khám thiếu sạch sẽ, cần cải thiện vệ sinh', status: 'PENDING', createdDate: '17/11/2024', handlerName: null },
-			{ id: 4, code: 'PA-2024-004', content: 'Khen ngợi bác sĩ điều trị nhiệt tình, chuyên nghiệp', status: 'COMPLETED', createdDate: '18/11/2024', handlerName: 'BS. Lê Văn C' },
-			{ id: 5, code: 'PA-2024-005', content: 'Cơ sở vật chất xuống cấp, máy lạnh không hoạt động', status: 'PROCESSING', createdDate: '19/11/2024', handlerName: 'Phạm Văn D' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			detailFeedbacks.value = [
+				{ id: 1, code: 'PA-2024-001', content: 'Thời gian chờ khám quá lâu, bệnh nhân phải đợi hơn 2 tiếng', status: 'COMPLETED', createdDate: '15/11/2024', handlerName: 'BS. Nguyễn Văn A' },
+				{ id: 2, code: 'PA-2024-002', content: 'Nhân viên lễ tân thiếu thân thiện với bệnh nhân cao tuổi', status: 'PROCESSING', createdDate: '16/11/2024', handlerName: 'Trần Thị B' },
+				{ id: 3, code: 'PA-2024-003', content: 'Phòng khám thiếu sạch sẽ, cần cải thiện vệ sinh', status: 'PENDING', createdDate: '17/11/2024', handlerName: null },
+				{ id: 4, code: 'PA-2024-004', content: 'Khen ngợi bác sĩ điều trị nhiệt tình, chuyên nghiệp', status: 'COMPLETED', createdDate: '18/11/2024', handlerName: 'BS. Lê Văn C' },
+				{ id: 5, code: 'PA-2024-005', content: 'Cơ sở vật chất xuống cấp, máy lạnh không hoạt động', status: 'PROCESSING', createdDate: '19/11/2024', handlerName: 'Phạm Văn D' }
+			]
+		} else {
+			console.error('Error fetching department detail:', error)
+			detailFeedbacks.value = []
+		}
 	} finally {
 		detailLoading.value = false
 	}

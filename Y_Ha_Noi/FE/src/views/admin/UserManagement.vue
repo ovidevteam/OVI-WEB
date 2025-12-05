@@ -129,6 +129,9 @@ import { ROLES, USER_STATUS } from '@/utils/constants'
 import { getRoleLabel, getUserStatusLabel, getUserStatusType } from '@/utils/helpers'
 import userService from '@/services/userService'
 import departmentService from '@/services/departmentService'
+import { mockUsers, mockDepartmentsSimple } from '@/mock/db'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const loading = ref(false)
 const saveLoading = ref(false)
@@ -178,6 +181,15 @@ const rules = {
 
 const fetchData = async () => {
 	loading.value = true
+	
+	if (DEMO_MODE) {
+		// Demo data - use mock data from db.js
+		users.value = [...mockUsers]
+		total.value = mockUsers.length
+		loading.value = false
+		return
+	}
+
 	try {
 		const response = await userService.getList({
 			keyword: searchKeyword.value,
@@ -189,14 +201,8 @@ const fetchData = async () => {
 		users.value = response.data || []
 		total.value = response.total || 0
 	} catch (error) {
-		// Demo data
-		users.value = [
-			{ id: 1, username: 'admin', fullName: 'Quản trị viên', email: 'admin@bvyhanoi.vn', role: 'ADMIN', departmentName: '', status: 'ACTIVE' },
-			{ id: 2, username: 'leader', fullName: 'Nguyễn Văn Lãnh đạo', email: 'leader@bvyhanoi.vn', role: 'LEADER', departmentName: '', status: 'ACTIVE' },
-			{ id: 3, username: 'receiver', fullName: 'Trần Thị Tiếp nhận', email: 'receiver@bvyhanoi.vn', role: 'RECEIVER', departmentName: 'Tiếp nhận', status: 'ACTIVE' },
-			{ id: 4, username: 'handler1', fullName: 'BS. Nguyễn Văn A', email: 'handler1@bvyhanoi.vn', role: 'HANDLER', departmentName: 'Nội khoa', status: 'ACTIVE' }
-		]
-		total.value = 4
+		console.error('Error fetching users:', error)
+		ElMessage.error('Lỗi khi tải danh sách người dùng')
 	} finally {
 		loading.value = false
 	}
@@ -206,10 +212,12 @@ const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
 	} catch (error) {
-		departments.value = [
-			{ id: 1, name: 'Nội khoa' },
-			{ id: 2, name: 'Ngoại khoa' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - use mock data from db.js
+			departments.value = [...mockDepartmentsSimple]
+		} else {
+			console.error('Error fetching departments:', error)
+		}
 	}
 }
 

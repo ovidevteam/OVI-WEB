@@ -6,7 +6,7 @@
 import api from './api'
 
 // Demo mode - if true, use mock data instead of real API
-const DEMO_MODE = true
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 // Mock data for demo
 const mockRatings = [

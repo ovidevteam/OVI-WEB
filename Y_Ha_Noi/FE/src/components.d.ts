@@ -60,6 +60,7 @@ declare module 'vue' {
     LineChart: typeof import('./components/charts/LineChart.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SessionTimeoutWarning: typeof import('./components/common/SessionTimeoutWarning.vue')['default']
     Sidebar: typeof import('./components/common/Sidebar.vue')['default']
   }
   export interface ComponentCustomProperties {

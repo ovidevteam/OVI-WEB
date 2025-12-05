@@ -204,6 +204,8 @@ import departmentService from '@/services/departmentService'
 import { downloadBlob } from '@/utils/helpers'
 import BarChart from '@/components/charts/BarChart.vue'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const router = useRouter()
 const loading = ref(false)
 const detailLoading = ref(false)
@@ -250,15 +252,20 @@ const fetchData = async () => {
 		reportData.value = response.data || []
 		total.value = response.total || 0
 	} catch (error) {
-		// Demo data
-		reportData.value = [
-			{ id: 1, doctorName: 'BS. Nguyễn Văn A', departmentName: 'Nội khoa', specialty: 'Nội khoa', total: 25, completed: 23, avgDays: 1.2, rating: 4.8 },
-			{ id: 2, doctorName: 'BS. Trần Thị B', departmentName: 'Ngoại khoa', specialty: 'Ngoại khoa', total: 20, completed: 18, avgDays: 1.5, rating: 4.5 },
-			{ id: 3, doctorName: 'BS. Lê Văn C', departmentName: 'Da liễu', specialty: 'Da liễu', total: 18, completed: 17, avgDays: 1.8, rating: 4.6 },
-			{ id: 4, doctorName: 'BS. Phạm Thị D', departmentName: 'Sản khoa', specialty: 'Sản khoa', total: 15, completed: 12, avgDays: 2.5, rating: 4.2 },
-			{ id: 5, doctorName: 'BS. Hoàng Văn E', departmentName: 'Nhi khoa', specialty: 'Nhi khoa', total: 22, completed: 21, avgDays: 1.0, rating: 4.9 }
-		]
-		total.value = 5
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			reportData.value = [
+				{ id: 1, doctorName: 'BS. Nguyễn Văn A', departmentName: 'Nội khoa', specialty: 'Nội khoa', total: 25, completed: 23, avgDays: 1.2, rating: 4.8 },
+				{ id: 2, doctorName: 'BS. Trần Thị B', departmentName: 'Ngoại khoa', specialty: 'Ngoại khoa', total: 20, completed: 18, avgDays: 1.5, rating: 4.5 },
+				{ id: 3, doctorName: 'BS. Lê Văn C', departmentName: 'Da liễu', specialty: 'Da liễu', total: 18, completed: 17, avgDays: 1.8, rating: 4.6 },
+				{ id: 4, doctorName: 'BS. Phạm Thị D', departmentName: 'Sản khoa', specialty: 'Sản khoa', total: 15, completed: 12, avgDays: 2.5, rating: 4.2 },
+				{ id: 5, doctorName: 'BS. Hoàng Văn E', departmentName: 'Nhi khoa', specialty: 'Nhi khoa', total: 22, completed: 21, avgDays: 1.0, rating: 4.9 }
+			]
+			total.value = 5
+		} else {
+			console.error('Error fetching report data:', error)
+			ElMessage.error('Lỗi khi tải báo cáo theo bác sĩ')
+		}
 	} finally {
 		loading.value = false
 	}
@@ -268,13 +275,18 @@ const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
 	} catch (error) {
-		departments.value = [
-			{ id: 1, name: 'Nội khoa' },
-			{ id: 2, name: 'Ngoại khoa' },
-			{ id: 3, name: 'Da liễu' },
-			{ id: 4, name: 'Sản khoa' },
-			{ id: 5, name: 'Nhi khoa' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			departments.value = [
+				{ id: 1, name: 'Nội khoa' },
+				{ id: 2, name: 'Ngoại khoa' },
+				{ id: 3, name: 'Da liễu' },
+				{ id: 4, name: 'Sản khoa' },
+				{ id: 5, name: 'Nhi khoa' }
+			]
+		} else {
+			console.error('Failed to load departments:', error)
+		}
 	}
 }
 
@@ -290,14 +302,19 @@ const fetchDoctorDetail = async (doctorId) => {
 		const response = await reportService.getDoctorFeedbacks(doctorId)
 		doctorFeedbacks.value = response.data || []
 	} catch (error) {
-		// Demo data
-		doctorFeedbacks.value = [
-			{ id: 1, code: 'PA-2024-001', content: 'Thời gian chờ khám quá lâu, bệnh nhân phải đợi hơn 2 tiếng', status: 'COMPLETED', processingTime: 1.5, completedDate: '20/11/2024' },
-			{ id: 2, code: 'PA-2024-004', content: 'Khen ngợi bác sĩ điều trị nhiệt tình, chuyên nghiệp', status: 'COMPLETED', processingTime: 0.5, completedDate: '22/11/2024' },
-			{ id: 3, code: 'PA-2024-007', content: 'Bác sĩ giải thích rõ ràng về tình trạng bệnh và phác đồ điều trị', status: 'COMPLETED', processingTime: 1.0, completedDate: '24/11/2024' },
-			{ id: 4, code: 'PA-2024-010', content: 'Phản hồi nhanh chóng khi bệnh nhân có thắc mắc về thuốc', status: 'COMPLETED', processingTime: 2.0, completedDate: '25/11/2024' },
-			{ id: 5, code: 'PA-2024-015', content: 'Cần cải thiện thái độ phục vụ trong giờ cao điểm', status: 'PROCESSING', processingTime: 1.5, completedDate: null }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			doctorFeedbacks.value = [
+				{ id: 1, code: 'PA-2024-001', content: 'Thời gian chờ khám quá lâu, bệnh nhân phải đợi hơn 2 tiếng', status: 'COMPLETED', processingTime: 1.5, completedDate: '20/11/2024' },
+				{ id: 2, code: 'PA-2024-004', content: 'Khen ngợi bác sĩ điều trị nhiệt tình, chuyên nghiệp', status: 'COMPLETED', processingTime: 0.5, completedDate: '22/11/2024' },
+				{ id: 3, code: 'PA-2024-007', content: 'Bác sĩ giải thích rõ ràng về tình trạng bệnh và phác đồ điều trị', status: 'COMPLETED', processingTime: 1.0, completedDate: '24/11/2024' },
+				{ id: 4, code: 'PA-2024-010', content: 'Phản hồi nhanh chóng khi bệnh nhân có thắc mắc về thuốc', status: 'COMPLETED', processingTime: 2.0, completedDate: '25/11/2024' },
+				{ id: 5, code: 'PA-2024-015', content: 'Cần cải thiện thái độ phục vụ trong giờ cao điểm', status: 'PROCESSING', processingTime: 1.5, completedDate: null }
+			]
+		} else {
+			console.error('Error fetching doctor detail:', error)
+			doctorFeedbacks.value = []
+		}
 	} finally {
 		detailLoading.value = false
 	}

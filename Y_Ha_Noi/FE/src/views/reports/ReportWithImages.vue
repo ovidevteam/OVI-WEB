@@ -103,6 +103,8 @@ import reportService from '@/services/reportService'
 import departmentService from '@/services/departmentService'
 import ImageGallery from '@/components/upload/ImageGallery.vue'
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 const router = useRouter()
 const loading = ref(false)
 const reportData = ref([])
@@ -125,45 +127,50 @@ const fetchData = async () => {
 			endDate: dateRange.value?.[1]
 		})
 	} catch (error) {
-		// Demo data
-		reportData.value = [
-			{
-				id: 1,
-				code: 'PA-20251127-001',
-				content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội khi tiếp nhận bệnh nhân',
-				departmentName: 'Nội khoa',
-				receivedDate: '2025-11-27',
-				status: 'PROCESSING',
-				images: [
-					{ id: 1, url: 'https://via.placeholder.com/300x200?text=Image+1' },
-					{ id: 2, url: 'https://via.placeholder.com/300x200?text=Image+2' }
-				]
-			},
-			{
-				id: 2,
-				code: 'PA-20251126-002',
-				content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu, cần cải thiện',
-				departmentName: 'Da liễu',
-				receivedDate: '2025-11-26',
-				status: 'COMPLETED',
-				images: [
-					{ id: 3, url: 'https://via.placeholder.com/300x200?text=Image+3' },
-					{ id: 4, url: 'https://via.placeholder.com/300x200?text=Image+4' },
-					{ id: 5, url: 'https://via.placeholder.com/300x200?text=Image+5' }
-				]
-			},
-			{
-				id: 3,
-				code: 'PA-20251125-003',
-				content: 'Cơ sở vật chất phòng khám cần được nâng cấp để phục vụ bệnh nhân tốt hơn',
-				departmentName: 'Ngoại khoa',
-				receivedDate: '2025-11-25',
-				status: 'NEW',
-				images: [
-					{ id: 6, url: 'https://via.placeholder.com/300x200?text=Image+6' }
-				]
-			}
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			reportData.value = [
+				{
+					id: 1,
+					code: 'PA-20251127-001',
+					content: 'Phản ánh về thái độ phục vụ của nhân viên khoa Nội khi tiếp nhận bệnh nhân',
+					departmentName: 'Nội khoa',
+					receivedDate: '2025-11-27',
+					status: 'PROCESSING',
+					images: [
+						{ id: 1, url: 'https://via.placeholder.com/300x200?text=Image+1' },
+						{ id: 2, url: 'https://via.placeholder.com/300x200?text=Image+2' }
+					]
+				},
+				{
+					id: 2,
+					code: 'PA-20251126-002',
+					content: 'Thời gian chờ khám quá lâu tại phòng khám da liễu, cần cải thiện',
+					departmentName: 'Da liễu',
+					receivedDate: '2025-11-26',
+					status: 'COMPLETED',
+					images: [
+						{ id: 3, url: 'https://via.placeholder.com/300x200?text=Image+3' },
+						{ id: 4, url: 'https://via.placeholder.com/300x200?text=Image+4' },
+						{ id: 5, url: 'https://via.placeholder.com/300x200?text=Image+5' }
+					]
+				},
+				{
+					id: 3,
+					code: 'PA-20251125-003',
+					content: 'Cơ sở vật chất phòng khám cần được nâng cấp để phục vụ bệnh nhân tốt hơn',
+					departmentName: 'Ngoại khoa',
+					receivedDate: '2025-11-25',
+					status: 'NEW',
+					images: [
+						{ id: 6, url: 'https://via.placeholder.com/300x200?text=Image+6' }
+					]
+				}
+			]
+		} else {
+			console.error('Error fetching report data:', error)
+			ElMessage.error('Lỗi khi tải báo cáo có hình ảnh')
+		}
 	} finally {
 		loading.value = false
 	}
@@ -173,10 +180,15 @@ const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
 	} catch (error) {
-		departments.value = [
-			{ id: 1, name: 'Nội khoa' },
-			{ id: 2, name: 'Ngoại khoa' }
-		]
+		if (DEMO_MODE) {
+			// Demo data - only in demo mode
+			departments.value = [
+				{ id: 1, name: 'Nội khoa' },
+				{ id: 2, name: 'Ngoại khoa' }
+			]
+		} else {
+			console.error('Failed to load departments:', error)
+		}
 	}
 }
 
