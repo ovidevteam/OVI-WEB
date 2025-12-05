@@ -1,0 +1,45 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: dhy_be
+  datasource:
+    url: jdbc:postgresql://localhost:5434/dhypostgres
+    username: admin
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      pool-name: HikariPool
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      auto-commit: false
+    show-sql: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: besttaloon03@gmail.com
+    password: "qjxh rbms xsry wwlr"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  #logging:
+  #  level:
+  #    org.hibernate.SQL: DEBUG
+
+app:
+  storage:
+    base-dir: uploads
+    public-base-url: /uploads
+  mail:
+    portal-url: http://localhost:4200
+    reminder-days: 3
+    reminder-cron: "0 0 8 * * *"
+
+
