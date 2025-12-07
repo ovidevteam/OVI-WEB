@@ -31,6 +31,35 @@ export default defineConfig({
 				changeOrigin: true
 			}
 		}
+	},
+	build: {
+		target: 'es2015',
+		cssCodeSplit: true,
+		sourcemap: false,
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true,
+				drop_debugger: true
+			}
+		},
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					'vue-vendor': ['vue', 'vue-router', 'pinia'],
+					'element-plus': ['element-plus', '@element-plus/icons-vue'],
+					'chart-vendor': ['chart.js', 'vue-chartjs'],
+					'utils': ['axios', 'dayjs', 'crypto-js']
+				},
+				chunkFileNames: 'js/[name]-[hash].js',
+				entryFileNames: 'js/[name]-[hash].js',
+				assetFileNames: 'assets/[name]-[hash].[ext]'
+			}
+		},
+		chunkSizeWarningLimit: 1000
+	},
+	optimizeDeps: {
+		include: ['vue', 'vue-router', 'pinia', 'element-plus', 'axios', 'dayjs']
 	}
 })
 

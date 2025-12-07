@@ -273,6 +273,100 @@ a:hover {
 	color: var(--secondary-color);
 }
 
+/* Fix text flickering on click - prevent unnecessary re-renders */
+.el-table__row {
+	will-change: auto;
+}
+
+.el-table__cell {
+	transition: none !important;
+}
+
+.el-table__body-wrapper .el-table__row:hover {
+	transition: background-color 0.15s ease;
+}
+
+/* Prevent text selection flicker on button click - All browsers including Edge */
+.el-button {
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-touch-callout: none;
+	/* Edge specific */
+	-ms-touch-action: manipulation;
+	touch-action: manipulation;
+	/* Prevent drag */
+	-webkit-user-drag: none;
+	-khtml-user-drag: none;
+	-moz-user-drag: none;
+	-o-user-drag: none;
+	user-drag: none;
+}
+
+.el-button:active {
+	transform: scale(0.98);
+	transition: transform 0.1s ease;
+}
+
+/* Specifically for link buttons - prevent text selection */
+.el-button--text,
+.el-button.is-link,
+.el-button[type="text"],
+.el-button--link {
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
+	/* Edge specific */
+	-ms-touch-action: manipulation;
+	touch-action: manipulation;
+	-webkit-user-drag: none;
+	user-drag: none;
+}
+
+/* Prevent text selection on table action column (cells containing buttons) */
+.el-table__cell .el-button {
+	pointer-events: auto;
+}
+
+/* Prevent text selection when clicking on table cells with buttons */
+.el-table__cell:has(.el-button),
+.el-table__cell .el-button {
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+	-webkit-touch-callout: none;
+	/* Edge specific */
+	-ms-touch-action: manipulation;
+	touch-action: manipulation;
+}
+
+/* Allow text selection for content cells (not action columns) */
+.el-table__cell:not(:has(.el-button)) {
+	user-select: text;
+	-webkit-user-select: text;
+	-moz-user-select: text;
+	-ms-user-select: text;
+}
+
+/* Edge specific: Prevent text selection on button mousedown */
+@supports (-ms-ime-align: auto) {
+	.el-button {
+		-ms-user-select: none !important;
+		-ms-touch-action: manipulation !important;
+	}
+	
+	.el-table__cell:has(.el-button) {
+		-ms-user-select: none !important;
+	}
+}
+
 /* ========================================
    Form Styles
    ======================================== */

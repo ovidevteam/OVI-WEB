@@ -101,6 +101,7 @@ import { Download } from '@element-plus/icons-vue'
 import { formatDate, truncate, getStatusLabel, getStatusType } from '@/utils/helpers'
 import reportService from '@/services/reportService'
 import departmentService from '@/services/departmentService'
+import { handleApiError } from '@/utils/errorHandler'
 import ImageGallery from '@/components/upload/ImageGallery.vue'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
@@ -121,11 +122,13 @@ const totalImages = computed(() => {
 const fetchData = async () => {
 	loading.value = true
 	try {
-		reportData.value = await reportService.getWithImages({
+		const response = await reportService.getWithImages({
 			departmentId: filterDepartment.value,
 			startDate: dateRange.value?.[0],
 			endDate: dateRange.value?.[1]
 		})
+		// API returns array directly
+		reportData.value = Array.isArray(response) ? response : (response.data || [])
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -168,8 +171,7 @@ const fetchData = async () => {
 				}
 			]
 		} else {
-			console.error('Error fetching report data:', error)
-			ElMessage.error('Lỗi khi tải báo cáo có hình ảnh')
+			handleApiError(error, 'Report With Images')
 		}
 	} finally {
 		loading.value = false

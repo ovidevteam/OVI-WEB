@@ -1,5 +1,5 @@
 <template>
-	<div class="dashboard">
+	<div class="dashboard" v-loading="loading">
 		<!-- Stats Cards -->
 		<div class="stats-grid">
 			<div class="stat-card primary">
@@ -81,7 +81,7 @@
 				</el-button>
 			</div>
 
-			<el-table :data="recentFeedbacks" stripe style="width: 100%">
+			<el-table :data="recentFeedbacks" stripe style="width: 100%" row-key="id">
 				<el-table-column prop="code" label="Số PA" width="145" />
 				<el-table-column prop="receivedDate" label="Ngày" width="105">
 					<template #default="{ row }">
@@ -117,6 +117,8 @@
 							text
 							size="small"
 							@click="viewDetail(row.id)"
+							@mousedown.prevent
+							@selectstart.prevent
 						>
 							<el-icon><View /></el-icon>
 						</el-button>
@@ -135,8 +137,10 @@ import {
 	ArrowRight, View
 } from '@element-plus/icons-vue'
 import { formatDate, truncate, getLevelLabel, getLevelType, getStatusLabel, getStatusType } from '@/utils/helpers'
+import { handleApiError } from '@/utils/errorHandler'
 import reportService from '@/services/reportService'
 import feedbackService from '@/services/feedbackService'
+import departmentService from '@/services/departmentService'
 import LineChart from '@/components/charts/LineChart.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import {
@@ -191,6 +195,8 @@ const departmentData = ref({
 })
 
 const recentFeedbacks = ref([])
+const loading = ref(false)
+const departments = ref([]) // Store departments for mapping
 
 const goToList = () => {
 	router.push('/feedback')
@@ -200,59 +206,169 @@ const viewDetail = (id) => {
 	router.push(`/feedback/${id}`)
 }
 
-const loadDashboardData = async () => {
-	if (DEMO_MODE) {
-		// Demo data - use mock data from db.js
-		Object.assign(stats, mockDashboardStats)
-		monthlyData.value.datasets[0].data = mockMonthlyStats
-		departmentData.value.labels = mockDepartmentStats.map(d => d.departmentName)
-		departmentData.value.datasets[0].data = mockDepartmentStats.map(d => d.count)
-		recentFeedbacks.value = mockFeedbacks.slice(0, 5)
-		return
-	}
-
+/**
+ * Load departments list for mapping departmentId to departmentName
+ */
+const loadDepartments = async () => {
 	try {
-		// Load dashboard stats
+		departments.value = await departmentService.getActiveList()
+	} catch (error) {
+		departments.value = []
+	}
+}
+
+/**
+ * Get department name by ID
+ */
+const getDepartmentName = (departmentId) => {
+	if (!departmentId) return ''
+	const dept = departments.value.find(d => d.id === departmentId)
+	return dept ? dept.name : ''
+}
+
+/**
+ * Map departmentId to departmentName for feedbacks
+ */
+const mapFeedbackDepartments = (feedbacks) => {
+	if (!feedbacks || !Array.isArray(feedbacks)) return []
+	return feedbacks.map(feedback => {
+		if (feedback.departmentId && !feedback.departmentName && departments.value.length > 0) {
+			feedback.departmentName = getDepartmentName(feedback.departmentId)
+		}
+		return feedback
+	})
+}
+
+/**
+ * Map departmentId to departmentName for department stats
+ */
+const mapDepartmentStats = (stats) => {
+	if (!stats || !Array.isArray(stats)) return stats
+	return stats.map(stat => {
+		// If has departmentId but no departmentName, map it
+		if (stat.departmentId && !stat.departmentName && departments.value.length > 0) {
+			stat.departmentName = getDepartmentName(stat.departmentId)
+		}
+		// If has name but no departmentName, use name
+		if (!stat.departmentName && stat.name) {
+			stat.departmentName = stat.name
+		}
+		return stat
+	})
+}
+
+const loadDashboardData = async () => {
+	loading.value = true
+	try {
+		// Load departments first for mapping
+		await loadDepartments()
+		
+		if (DEMO_MODE) {
+			// Demo data - use mock data from db.js
+			Object.assign(stats, mockDashboardStats)
+			monthlyData.value.datasets[0].data = mockMonthlyStats
+			departmentData.value.labels = mockDepartmentStats.map(d => d.departmentName)
+			departmentData.value.datasets[0].data = mockDepartmentStats.map(d => d.count)
+			recentFeedbacks.value = mockFeedbacks.slice(0, 5)
+			return
+		}
+		// Load dashboard stats - API returns { stats, monthlyStats, departmentStats, recentFeedbacks }
 		const dashboardData = await reportService.getDashboard()
 		if (dashboardData) {
-			stats.total = dashboardData.total || 0
-			stats.processing = dashboardData.processing || 0
-			stats.completed = dashboardData.completed || 0
-			stats.overdue = dashboardData.overdue || 0
-		}
-	} catch (error) {
-		console.error('Failed to load dashboard stats:', error)
-	}
+			// Extract stats from response
+			if (dashboardData.stats) {
+				stats.total = dashboardData.stats.total || 0
+				stats.processing = dashboardData.stats.processing || 0
+				stats.completed = dashboardData.stats.completed || 0
+				stats.overdue = dashboardData.stats.overdue || 0
+			} else {
+				// Fallback: if stats is at root level
+				stats.total = dashboardData.total || 0
+				stats.processing = dashboardData.processing || 0
+				stats.completed = dashboardData.completed || 0
+				stats.overdue = dashboardData.overdue || 0
+			}
 
-	try {
-		// Load monthly stats
-		const monthlyStats = await reportService.getMonthlyStats(selectedYear.value)
-		if (monthlyStats && monthlyStats.data) {
-			monthlyData.value.datasets[0].data = monthlyStats.data
-		}
-	} catch (error) {
-		console.error('Failed to load monthly stats:', error)
-	}
+			// Extract monthly stats from dashboard response
+			if (dashboardData.monthlyStats && Array.isArray(dashboardData.monthlyStats)) {
+				// Convert array of {month, count} to array of counts
+				const monthlyCounts = new Array(12).fill(0)
+				dashboardData.monthlyStats.forEach(item => {
+					if (item.month >= 1 && item.month <= 12) {
+						monthlyCounts[item.month - 1] = item.count || 0
+					}
+				})
+				monthlyData.value.datasets[0].data = monthlyCounts
+			}
 
-	try {
-		// Load department stats (top 5)
-		const deptStats = await reportService.getByDepartment({ limit: 5 })
-		if (deptStats && deptStats.data) {
-			departmentData.value.labels = deptStats.data.map(d => d.departmentName)
-			departmentData.value.datasets[0].data = deptStats.data.map(d => d.count)
-		}
-	} catch (error) {
-		console.error('Failed to load department stats:', error)
-	}
+			// Extract department stats from dashboard response
+			if (dashboardData.departmentStats && Array.isArray(dashboardData.departmentStats)) {
+				// Map departmentId to departmentName if needed
+				const mappedStats = mapDepartmentStats(dashboardData.departmentStats)
+				departmentData.value.labels = mappedStats.map(d => d.departmentName || d.name || '')
+				departmentData.value.datasets[0].data = mappedStats.map(d => d.count || d.total || 0)
+			}
 
-	try {
-		// Load recent feedbacks
-		const feedbacks = await feedbackService.getList({ page: 1, size: 5, sort: 'receivedDate,desc' })
-		if (feedbacks && feedbacks.data) {
-			recentFeedbacks.value = feedbacks.data
+			// Extract recent feedbacks from dashboard response
+			if (dashboardData.recentFeedbacks && Array.isArray(dashboardData.recentFeedbacks)) {
+				recentFeedbacks.value = mapFeedbackDepartments(dashboardData.recentFeedbacks)
+			}
+		}
+
+		// If monthly stats not loaded from dashboard, try separate API
+		if (monthlyData.value.datasets[0].data.every(v => v === 0)) {
+			try {
+				const monthlyStats = await reportService.getMonthlyStats(selectedYear.value)
+				if (monthlyStats && Array.isArray(monthlyStats)) {
+					// Convert array of {month, count} to array of counts
+					const monthlyCounts = new Array(12).fill(0)
+					monthlyStats.forEach(item => {
+						if (item.month >= 1 && item.month <= 12) {
+							monthlyCounts[item.month - 1] = item.count || 0
+						}
+					})
+					monthlyData.value.datasets[0].data = monthlyCounts
+				}
+			} catch (error) {
+				// Silently fail for fallback API calls
+			}
+		}
+
+		// If department stats not loaded from dashboard, try separate API
+		if (departmentData.value.labels.length === 0) {
+			try {
+				const deptStats = await reportService.getByDepartment({ limit: 5 })
+				if (deptStats && Array.isArray(deptStats)) {
+					// Map departmentId to departmentName if needed
+					const mappedStats = mapDepartmentStats(deptStats)
+					departmentData.value.labels = mappedStats.map(d => d.departmentName || d.name || '')
+					departmentData.value.datasets[0].data = mappedStats.map(d => d.count || d.total || 0)
+				}
+			} catch (error) {
+				// Silently fail for fallback API calls
+			}
+		}
+
+		// If recent feedbacks not loaded from dashboard, try separate API
+		if (recentFeedbacks.value.length === 0) {
+			try {
+				const feedbacks = await feedbackService.getList({ page: 1, size: 5, sort: 'receivedDate,desc' })
+				let feedbackList = []
+				if (feedbacks && feedbacks.data) {
+					feedbackList = feedbacks.data
+				} else if (Array.isArray(feedbacks)) {
+					feedbackList = feedbacks
+				}
+				// Map departmentId to departmentName
+				recentFeedbacks.value = mapFeedbackDepartments(feedbackList).slice(0, 5)
+			} catch (error) {
+				// Silently fail for fallback API calls
+			}
 		}
 	} catch (error) {
-		console.error('Failed to load recent feedbacks:', error)
+		handleApiError(error, 'Dashboard')
+	} finally {
+		loading.value = false
 	}
 }
 

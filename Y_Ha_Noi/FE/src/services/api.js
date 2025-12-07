@@ -18,6 +18,86 @@ const RETRY_DELAY = 1000 // 1 second
 const RETRYABLE_STATUS_CODES = [408, 429, 500, 502, 503, 504]
 const RETRYABLE_NETWORK_ERRORS = ['ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND']
 
+// Cache configuration
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const cache = new Map()
+const pendingRequests = new Map()
+
+/**
+ * Generate cache key from request config
+ * @param {Object} config - Axios request config
+ * @returns {string} Cache key
+ */
+function getCacheKey(config) {
+	const { method, url, params } = config
+	const paramsStr = params ? JSON.stringify(params) : ''
+	return `${method}:${url}:${paramsStr}`
+}
+
+/**
+ * Check if request should be cached
+ * @param {Object} config - Axios request config
+ * @returns {boolean} True if request should be cached
+ */
+function shouldCache(config) {
+	// Only cache GET requests
+	if (config.method?.toUpperCase() !== 'GET') return false
+	
+	// Check if caching is explicitly disabled
+	if (config.__noCache === true) return false
+	
+	// Cache department/doctor lists and other reference data
+	const cacheablePaths = ['/departments', '/doctors', '/feedbacks/my']
+	return cacheablePaths.some(path => config.url?.includes(path))
+}
+
+/**
+ * Get cached response if available and not expired
+ * @param {string} key - Cache key
+ * @returns {Object|null} Cached response or null
+ */
+function getCachedResponse(key) {
+	const cached = cache.get(key)
+	if (!cached) return null
+	
+	const now = Date.now()
+	if (now - cached.timestamp > CACHE_TTL) {
+		cache.delete(key)
+		return null
+	}
+	
+	return cached.data
+}
+
+/**
+ * Store response in cache
+ * @param {string} key - Cache key
+ * @param {*} data - Response data
+ */
+function setCachedResponse(key, data) {
+	cache.set(key, {
+		data,
+		timestamp: Date.now()
+	})
+}
+
+/**
+ * Clear cache for specific URL pattern
+ * @param {string} pattern - URL pattern to clear
+ */
+export function clearCache(pattern) {
+	if (!pattern) {
+		cache.clear()
+		return
+	}
+	
+	for (const key of cache.keys()) {
+		if (key.includes(pattern)) {
+			cache.delete(key)
+		}
+	}
+}
+
 /**
  * Check if error is retryable
  * @param {Error} error - The error object
@@ -102,6 +182,11 @@ api.interceptors.request.use(
 		// Initialize retry count
 		config.__retryCount = config.__retryCount || 0
 		
+		// Mark cache key for GET requests
+		if (shouldCache(config)) {
+			config.__cacheKey = getCacheKey(config)
+		}
+		
 		return config
 	},
 	(error) => {
@@ -112,11 +197,24 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
 	(response) => {
+		const config = response.config || {}
+		
+		// Cache successful GET responses
+		if (config.__cacheKey && response.status === 200 && response.data) {
+			setCachedResponse(config.__cacheKey, response.data)
+			pendingRequests.delete(config.__cacheKey)
+		}
+		
 		return response.data
 	},
 	async (error) => {
 		const { response } = error
-		const config = error.config
+		const config = error.config || {}
+		
+		// Clean up pending request on error
+		if (config.__cacheKey) {
+			pendingRequests.delete(config.__cacheKey)
+		}
 
 		// Handle 401 - Unauthorized
 		if (response?.status === 401) {
@@ -163,6 +261,47 @@ api.interceptors.response.use(
 		return Promise.reject(error)
 	}
 )
+
+// Wrap axios methods to add caching
+const originalGet = api.get.bind(api)
+api.get = async function(url, config = {}) {
+	// Check cache first
+	if (shouldCache({ method: 'GET', url, ...config })) {
+		const cacheKey = getCacheKey({ method: 'GET', url, ...config })
+		const cached = getCachedResponse(cacheKey)
+		
+		if (cached) {
+			return Promise.resolve({ data: cached })
+		}
+		
+		// Check for pending duplicate requests
+		if (pendingRequests.has(cacheKey)) {
+			return pendingRequests.get(cacheKey)
+		}
+		
+		// Make request and cache it
+		const requestPromise = originalGet(url, { ...config, __cacheKey: cacheKey })
+			.then(response => {
+				if (response?.data) {
+					setCachedResponse(cacheKey, response.data)
+				}
+				pendingRequests.delete(cacheKey)
+				return response
+			})
+			.catch(error => {
+				pendingRequests.delete(cacheKey)
+				throw error
+			})
+		
+		pendingRequests.set(cacheKey, requestPromise)
+		return requestPromise
+	}
+	
+	return originalGet(url, config)
+}
+
+// Export cache utilities
+api.clearCache = clearCache
 
 export default api
 

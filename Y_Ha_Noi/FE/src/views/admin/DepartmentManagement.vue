@@ -9,7 +9,7 @@
 			</div>
 
 			<!-- Table -->
-			<el-table :data="departments" v-loading="loading" stripe>
+			<el-table :data="departments" v-loading="loading" stripe row-key="id">
 				<el-table-column prop="code" label="Mã phòng" width="120" />
 				<el-table-column prop="name" label="Tên phòng" min-width="200" />
 				<el-table-column prop="managerName" label="Trưởng phòng" width="180" />
@@ -24,8 +24,8 @@
 				</el-table-column>
 				<el-table-column label="Thao tác" width="150" align="center" fixed="right">
 					<template #default="{ row }">
-						<el-button type="primary" link @click="openDialog(row)">Sửa</el-button>
-						<el-button type="danger" link @click="handleDelete(row)">Xóa</el-button>
+						<el-button type="primary" link @click="openDialog(row)" @mousedown.prevent @selectstart.prevent>Sửa</el-button>
+						<el-button type="danger" link @click="handleDelete(row)" @mousedown.prevent @selectstart.prevent>Xóa</el-button>
 					</template>
 				</el-table-column>
 			</el-table>
@@ -49,6 +49,14 @@
 				</el-form-item>
 				<el-form-item label="Tên phòng" prop="name">
 					<el-input v-model="form.name" />
+				</el-form-item>
+				<el-form-item label="Mô tả">
+					<el-input
+						v-model="form.description"
+						type="textarea"
+						:rows="3"
+						placeholder="Nhập mô tả về phòng ban..."
+					/>
 				</el-form-item>
 				<el-form-item label="Trưởng phòng">
 					<el-select v-model="form.managerId" placeholder="Chọn trưởng phòng" clearable style="width: 100%">
@@ -85,6 +93,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import departmentService from '@/services/departmentService'
 import userService from '@/services/userService'
+import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -100,6 +109,7 @@ const form = reactive({
 	id: null,
 	code: '',
 	name: '',
+	description: '',
 	managerId: null,
 	defaultHandlerId: null,
 	notificationEmail: '',
@@ -130,8 +140,7 @@ const fetchData = async () => {
 				{ id: 3, code: 'PB-003', name: 'Sản khoa', managerName: 'BS. Lê Thị C', defaultHandlerName: 'BS. Lê Thị C', notificationEmail: 'sankhoa@bvyhanoi.vn', status: 'ACTIVE' }
 			]
 		} else {
-			console.error('Error fetching departments:', error)
-			ElMessage.error('Lỗi khi tải danh sách phòng ban')
+			handleApiError(error, 'Department Management')
 		}
 	} finally {
 		loading.value = false
@@ -152,19 +161,24 @@ const fetchUsers = async () => {
 			]
 			handlers.value = users.value
 		} else {
-			console.error('Error fetching users:', error)
+			// Silently fail for user fetch - not critical
 		}
 	}
 }
 
 const openDialog = (row = null) => {
 	if (row) {
-		Object.assign(form, row)
+		// Map handlerId to defaultHandlerId for form
+		Object.assign(form, {
+			...row,
+			defaultHandlerId: row.handlerId || row.defaultHandlerId
+		})
 	} else {
 		Object.assign(form, {
 			id: null,
 			code: '',
 			name: '',
+			description: '',
 			managerId: null,
 			defaultHandlerId: null,
 			notificationEmail: '',
@@ -180,10 +194,18 @@ const handleSave = async () => {
 		await formRef.value.validate()
 		saveLoading.value = true
 
+		// Normalize form data: convert empty strings to null for optional fields
+		const formData = {
+			...form,
+			code: form.code && form.code.trim() ? form.code.trim() : null,
+			description: form.description && form.description.trim() ? form.description.trim() : null,
+			notificationEmail: form.notificationEmail && form.notificationEmail.trim() ? form.notificationEmail.trim() : null
+		}
+
 		if (isEdit.value) {
-			await departmentService.update(form.id, form)
+			await departmentService.update(form.id, formData)
 		} else {
-			await departmentService.create(form)
+			await departmentService.create(formData)
 		}
 
 		ElMessage.success(isEdit.value ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
@@ -191,7 +213,7 @@ const handleSave = async () => {
 		fetchData()
 	} catch (error) {
 		if (error !== false) {
-			ElMessage.error('Có lỗi xảy ra')
+			handleApiError(error, 'Save Department')
 		}
 	} finally {
 		saveLoading.value = false

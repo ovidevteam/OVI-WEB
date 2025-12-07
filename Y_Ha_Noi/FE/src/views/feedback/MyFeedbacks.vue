@@ -62,6 +62,7 @@
 			<el-table
 				:data="filteredFeedbacks"
 				v-loading="loading"
+				row-key="id"
 				stripe
 				style="width: 100%"
 				@row-click="handleRowClick"
@@ -100,7 +101,7 @@
 				</el-table-column>
 				<el-table-column label="" width="90" align="center">
 					<template #default="{ row }">
-						<el-button type="primary" @click.stop="openProcessDialog(row)">
+						<el-button type="primary" @click.stop="openProcessDialog(row)" @mousedown.prevent @selectstart.prevent>
 							{{ row.status === 'COMPLETED' ? 'Xem' : 'Xử lý' }}
 						</el-button>
 					</template>
@@ -118,7 +119,9 @@
 			top="3vh"
 			draggable
 			class="process-dialog"
-			@close="resetProcessForm"
+			:close-on-click-modal="false"
+			:close-on-press-escape="true"
+			:before-close="handleCloseDialog"
 		>
 			<div class="process-content" v-if="currentFeedback">
 				<!-- Thông tin PA -->
@@ -254,12 +257,14 @@
 			</div>
 
 			<template #footer>
-				<el-button @click="processDialogVisible = false">Đóng</el-button>
+				<el-button @click="handleCloseDialog" @mousedown.prevent @selectstart.prevent>Đóng</el-button>
 				<el-button
 					v-if="currentFeedback?.status !== 'COMPLETED'"
 					type="primary"
 					:loading="submitting"
 					@click="submitProcess"
+					@mousedown.prevent
+					@selectstart.prevent
 				>
 					Lưu xử lý
 				</el-button>
@@ -334,7 +339,9 @@ const filteredFeedbacks = computed(() => {
 const fetchData = async () => {
 	loading.value = true
 	try {
-		feedbacks.value = await feedbackService.getMyFeedbacks()
+		const response = await feedbackService.getMyFeedbacks()
+		// Handle both array and object response formats
+		feedbacks.value = Array.isArray(response) ? response : (response?.data || [])
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -460,20 +467,50 @@ const openProcessDialog = async (feedback) => {
 	}
 }
 
+const handleCloseDialog = (done) => {
+	// Reset form first
+	resetProcessForm()
+	// If done callback is provided (from before-close), call it to close dialog
+	if (typeof done === 'function') {
+		done()
+	} else {
+		// Otherwise, manually close
+		processDialogVisible.value = false
+	}
+}
+
 const resetProcessForm = () => {
+	try {
 	processForm.processContent = ''
 	processForm.newStatus = 'PROCESSING'
 	processForm.note = ''
 	processForm.attachments = []
 	currentFeedback.value = null
 	processHistory.value = []
+		// Reset form validation
+		if (processFormRef.value) {
+			processFormRef.value.clearValidate()
+		}
+	} catch (error) {
+		console.error('Error resetting form:', error)
+	}
 }
 
 const submitProcess = async () => {
 	if (!processFormRef.value) return
 
+	try {
 	await processFormRef.value.validate(async (valid) => {
-		if (valid) {
+			if (!valid) {
+				ElMessage.warning('Vui lòng điền đầy đủ thông tin bắt buộc')
+				return
+			}
+
+			if (!currentFeedback.value || !currentFeedback.value.id) {
+				ElMessage.error('Không tìm thấy thông tin phản ánh')
+				return
+			}
+
 			submitting.value = true
 			try {
 				await feedbackService.updateProcessing(currentFeedback.value.id, {
@@ -487,26 +524,40 @@ const submitProcess = async () => {
 				const index = feedbacks.value.findIndex(f => f.id === currentFeedback.value.id)
 				if (index !== -1) {
 					feedbacks.value[index].status = processForm.newStatus
+					// Update other fields if needed
+					if (processForm.processContent) {
+						feedbacks.value[index].processContent = processForm.processContent
+					}
 				}
 				updateStats()
 
 				ElMessage.success('Cập nhật xử lý thành công!')
-				processDialogVisible.value = false
+				handleCloseDialog()
+				
+				// Refresh data to get latest from server
+				await fetchData()
 			} catch (error) {
-				// Demo mode - update locally
+				console.error('Error updating processing:', error)
+				// In demo mode or if API fails, update locally
+				if (DEMO_MODE || error?.response?.status >= 400) {
 				const index = feedbacks.value.findIndex(f => f.id === currentFeedback.value.id)
 				if (index !== -1) {
 					feedbacks.value[index].status = processForm.newStatus
 				}
 				updateStats()
-
 				ElMessage.success('Cập nhật xử lý thành công! (Demo)')
-				processDialogVisible.value = false
+					handleCloseDialog()
+				} else {
+					ElMessage.error('Không thể cập nhật xử lý. Vui lòng thử lại.')
+				}
 			} finally {
 				submitting.value = false
 			}
+		})
+	} catch (error) {
+		console.error('Error validating form:', error)
+		submitting.value = false
 		}
-	})
 }
 
 const getTimelineType = (status) => {
@@ -533,7 +584,7 @@ const handleExceed = (files) => {
 }
 
 const handleRemove = (file, fileList) => {
-	console.log('File removed:', file.name)
+	// File removed handler
 }
 
 const beforeUpload = (file) => {

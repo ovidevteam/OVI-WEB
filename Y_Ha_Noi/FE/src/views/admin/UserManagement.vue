@@ -33,7 +33,7 @@
 			</el-form>
 
 			<!-- Table -->
-			<el-table :data="users" v-loading="loading" stripe>
+			<el-table :data="users" v-loading="loading" stripe row-key="id">
 				<el-table-column prop="username" label="Username" width="140" />
 				<el-table-column prop="fullName" label="Họ tên" min-width="180" />
 				<el-table-column prop="email" label="Email" min-width="200" />
@@ -52,12 +52,14 @@
 				</el-table-column>
 				<el-table-column label="Thao tác" width="180" align="center" fixed="right">
 					<template #default="{ row }">
-						<el-button type="primary" link @click="openDialog(row)">Sửa</el-button>
-						<el-button type="warning" link @click="resetPassword(row)">Reset MK</el-button>
+						<el-button type="primary" link @click="openDialog(row)" @mousedown.prevent @selectstart.prevent>Sửa</el-button>
+						<el-button type="warning" link @click="resetPassword(row)" @mousedown.prevent @selectstart.prevent>Reset MK</el-button>
 						<el-button
 							:type="row.status === 'ACTIVE' ? 'danger' : 'success'"
 							link
 							@click="toggleStatus(row)"
+							@mousedown.prevent
+							@selectstart.prevent
 						>
 							{{ row.status === 'ACTIVE' ? 'Khóa' : 'Mở' }}
 						</el-button>
@@ -98,6 +100,9 @@
 				<el-form-item label="Email" prop="email">
 					<el-input v-model="form.email" type="email" />
 				</el-form-item>
+				<el-form-item label="Số điện thoại">
+					<el-input v-model="form.phone" placeholder="Nhập số điện thoại" />
+				</el-form-item>
 				<el-form-item v-if="!isEdit" label="Mật khẩu" prop="password">
 					<el-input v-model="form.password" type="password" show-password />
 				</el-form-item>
@@ -130,6 +135,7 @@ import { getRoleLabel, getUserStatusLabel, getUserStatusType } from '@/utils/hel
 import userService from '@/services/userService'
 import departmentService from '@/services/departmentService'
 import { mockUsers, mockDepartmentsSimple } from '@/mock/db'
+import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -151,6 +157,7 @@ const form = reactive({
 	username: '',
 	fullName: '',
 	email: '',
+	phone: '',
 	password: '',
 	role: 'HANDLER',
 	departmentId: null
@@ -201,8 +208,7 @@ const fetchData = async () => {
 		users.value = response.data || []
 		total.value = response.total || 0
 	} catch (error) {
-		console.error('Error fetching users:', error)
-		ElMessage.error('Lỗi khi tải danh sách người dùng')
+		handleApiError(error, 'User Management')
 	} finally {
 		loading.value = false
 	}
@@ -216,7 +222,7 @@ const fetchDepartments = async () => {
 			// Demo data - use mock data from db.js
 			departments.value = [...mockDepartmentsSimple]
 		} else {
-			console.error('Error fetching departments:', error)
+			// Silently fail for department fetch - not critical
 		}
 	}
 }
@@ -235,6 +241,7 @@ const openDialog = (row = null) => {
 			username: '',
 			fullName: '',
 			email: '',
+			phone: '',
 			password: '',
 			role: 'HANDLER',
 			departmentId: null
@@ -260,7 +267,7 @@ const handleSave = async () => {
 		fetchData()
 	} catch (error) {
 		if (error !== false) {
-			ElMessage.error('Có lỗi xảy ra')
+			handleApiError(error, 'Save User')
 		}
 	} finally {
 		saveLoading.value = false

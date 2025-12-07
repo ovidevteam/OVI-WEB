@@ -92,6 +92,7 @@
 				:data="feedbackList"
 				v-loading="loading"
 				stripe
+				row-key="id"
 				@row-click="openRatingDialog"
 				class="rating-table"
 				style="width: 100%"
@@ -115,24 +116,32 @@
 					</template>
 				</el-table-column>
 				<el-table-column prop="departmentName" label="Phòng" min-width="100" />
-				<el-table-column prop="completedDate" label="Ngày HT" width="105" />
+				<el-table-column prop="completedDate" label="Ngày HT" width="105">
+					<template #default="{ row }">
+						{{ formatDate(row.completedDate) }}
+					</template>
+				</el-table-column>
 				<el-table-column prop="ratingStatus" label="Trạng thái" width="110">
 					<template #default="{ row }">
-						<el-tag :type="row.rating ? 'success' : 'warning'" size="small">
-							{{ row.rating ? 'Đã đánh giá' : 'Chờ đánh giá' }}
+						<el-tag :type="row.userHasRated ? 'success' : 'warning'" size="small">
+							{{ row.userHasRated ? 'Đã đánh giá' : 'Chờ đánh giá' }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="rating" label="Đánh giá" width="140">
+				<el-table-column prop="averageRating" label="Đánh giá" width="140">
 					<template #default="{ row }">
 						<el-rate
-							v-if="row.rating"
-							v-model="row.rating"
+							v-if="row.averageRating"
+							:model-value="Math.round(row.averageRating)"
 							disabled
 							show-score
 							text-color="#ff9900"
 							:size="'small'"
-						/>
+						>
+							<template #score="{ value }">
+								<span class="el-rate__text">{{ value.toFixed(1) }}</span>
+							</template>
+						</el-rate>
 						<span v-else class="no-rating">Chưa có</span>
 					</template>
 				</el-table-column>
@@ -140,11 +149,13 @@
 					<template #default="{ row }">
 						<el-button
 							type="primary"
-							:icon="row.rating ? Edit : Star"
+							:icon="row.userHasRated ? Edit : Star"
 							size="small"
 							@click.stop="openRatingDialog(row)"
+							@mousedown.prevent
+							@selectstart.prevent
 						>
-							{{ row.rating ? 'Sửa' : 'Đánh giá' }}
+							{{ row.userHasRated ? 'Sửa' : 'Đánh giá' }}
 						</el-button>
 					</template>
 				</el-table-column>
@@ -167,7 +178,7 @@
 		<!-- Rating Dialog -->
 		<el-dialog
 			v-model="ratingDialogVisible"
-			:title="selectedFeedback?.rating ? 'Chỉnh sửa đánh giá' : 'Đánh giá Bác sĩ'"
+			:title="selectedFeedback?.userHasRated ? 'Chỉnh sửa đánh giá' : 'Đánh giá Bác sĩ'"
 			width="700px"
 			class="rating-dialog"
 			:close-on-click-modal="false"
@@ -235,9 +246,29 @@
 					</el-timeline>
 				</div>
 
+				<!-- Current Average Rating -->
+				<div class="current-rating-section" v-if="selectedFeedback?.averageRating">
+					<h4 class="section-title">Đánh giá trung bình hiện tại</h4>
+					<div class="average-rating-display">
+						<el-rate
+							:model-value="Math.round(selectedFeedback.averageRating)"
+							disabled
+							show-score
+							text-color="#ff9900"
+							:size="'large'"
+						>
+							<template #score="{ value }">
+								<span class="el-rate__text" style="font-size: 18px; font-weight: bold;">
+									{{ selectedFeedback.averageRating.toFixed(1) }} / 5.0
+								</span>
+							</template>
+						</el-rate>
+					</div>
+				</div>
+
 				<!-- Rating Form -->
 				<div class="rating-form-section">
-					<h4 class="section-title">Đánh giá chất lượng xử lý</h4>
+					<h4 class="section-title">{{ selectedFeedback?.userHasRated ? 'Chỉnh sửa đánh giá của bạn' : 'Đánh giá chất lượng xử lý' }}</h4>
 
 					<el-form :model="ratingForm" ref="ratingFormRef" :rules="ratingRules" label-position="top">
 						<el-form-item label="Đánh giá (1-5 sao)" prop="rating">
@@ -283,6 +314,8 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import ratingService from '@/services/ratingService'
 import departmentService from '@/services/departmentService'
+import { handleApiError } from '@/utils/errorHandler'
+import { formatDate } from '@/utils/helpers'
 import {
 	Star, Clock, CircleCheck, TrendCharts, Search, RefreshRight, Edit, List
 } from '@element-plus/icons-vue'
@@ -481,9 +514,9 @@ const fetchData = async () => {
 
 			// Apply filters
 			if (filterStatus.value === 'pending') {
-				filtered = filtered.filter(f => !f.rating)
+				filtered = filtered.filter(f => !f.userHasRated)
 			} else if (filterStatus.value === 'rated') {
-				filtered = filtered.filter(f => f.rating)
+				filtered = filtered.filter(f => f.userHasRated)
 			}
 
 			if (filterDepartment.value) {
@@ -495,11 +528,11 @@ const fetchData = async () => {
 
 			// Update stats
 			stats.total = mockFeedbackList.length
-			stats.pending = mockFeedbackList.filter(f => !f.rating).length
-			stats.rated = mockFeedbackList.filter(f => f.rating).length
-			const ratedItems = mockFeedbackList.filter(f => f.rating)
+			stats.pending = mockFeedbackList.filter(f => !f.userHasRated).length
+			stats.rated = mockFeedbackList.filter(f => f.userHasRated).length
+			const ratedItems = mockFeedbackList.filter(f => f.averageRating)
 			stats.avgRating = ratedItems.length > 0
-				? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
+				? (ratedItems.reduce((sum, f) => sum + (f.averageRating || 0), 0) / ratedItems.length).toFixed(1)
 				: 0
 		} else {
 			// Call real API
@@ -538,18 +571,17 @@ const fetchData = async () => {
 				} else {
 					// Calculate stats from data
 					stats.total = response.total || response.data.length
-					stats.pending = response.data.filter(f => !f.rating).length
-					stats.rated = response.data.filter(f => f.rating).length
-					const ratedItems = response.data.filter(f => f.rating)
+					stats.pending = response.data.filter(f => !f.userHasRated).length
+					stats.rated = response.data.filter(f => f.userHasRated).length
+					const ratedItems = response.data.filter(f => f.averageRating)
 					stats.avgRating = ratedItems.length > 0
-						? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
+						? (ratedItems.reduce((sum, f) => sum + (f.averageRating || 0), 0) / ratedItems.length).toFixed(1)
 						: 0
 				}
 			}
 		}
 	} catch (error) {
-		ElMessage.error('Lỗi khi tải dữ liệu')
-		console.error(error)
+		handleApiError(error, 'Feedback Ratings')
 	} finally {
 		loading.value = false
 	}
@@ -568,7 +600,7 @@ const fetchDepartments = async () => {
 		try {
 			departments.value = await departmentService.getActiveList()
 		} catch (error) {
-			console.error('Failed to load departments:', error)
+			// Silently fail for department fetch - not critical
 		}
 	}
 }
@@ -611,18 +643,50 @@ const getActionTagType = (action) => {
 	return types[action] || ''
 }
 
-const openRatingDialog = (row) => {
+const openRatingDialog = async (row) => {
 	selectedFeedback.value = { ...row }
 	ratingForm.rating = row.rating || 0
 	ratingForm.comment = row.comment || ''
 	ratingDialogVisible.value = true
+	
+	// Always check if rating exists in database, even if row.rating is null/0
+	// This ensures we use update instead of create if rating already exists
+	if (!DEMO_MODE) {
+		try {
+			const response = await ratingService.getRatingByFeedback(row.id)
+			// API may return { data: ... } or direct object
+			const existingRating = response?.data || response
+			if (existingRating && existingRating.id) {
+				// Rating exists, update selectedFeedback to reflect this
+				selectedFeedback.value.rating = existingRating.rating
+				selectedFeedback.value.comment = existingRating.comment
+				ratingForm.rating = existingRating.rating || 0
+				ratingForm.comment = existingRating.comment || ''
+			}
+		} catch (error) {
+			// If error getting rating (404 or null), assume no rating exists
+			// This is expected if rating doesn't exist yet
+		}
+	}
 }
 
 const submitRating = async () => {
 	if (!ratingFormRef.value) return
 
 	try {
+		// Validate form
 		await ratingFormRef.value.validate()
+		
+		// Double check rating value
+		const ratingValue = Array.isArray(ratingForm.rating) 
+			? ratingForm.rating[0] || ratingForm.rating.length 
+			: Number(ratingForm.rating) || 0;
+		
+		if (!ratingValue || ratingValue < 1 || ratingValue > 5) {
+			ElMessage.warning('Vui lòng chọn đánh giá từ 1 đến 5 sao');
+			return;
+		}
+		
 		submitting.value = true
 
 		if (DEMO_MODE) {
@@ -634,6 +698,14 @@ const submitRating = async () => {
 			if (index !== -1) {
 				feedbackList.value[index].rating = ratingForm.rating
 				feedbackList.value[index].comment = ratingForm.comment
+				feedbackList.value[index].userHasRated = true
+				// Update average rating (simplified for demo - in real app, backend calculates this)
+				if (!feedbackList.value[index].averageRating) {
+					feedbackList.value[index].averageRating = ratingForm.rating
+				} else {
+					// Simple average calculation for demo
+					feedbackList.value[index].averageRating = ((feedbackList.value[index].averageRating + ratingForm.rating) / 2).toFixed(1)
+				}
 			}
 
 			// Also update mock data
@@ -641,47 +713,103 @@ const submitRating = async () => {
 			if (mockIndex !== -1) {
 				mockFeedbackList[mockIndex].rating = ratingForm.rating
 				mockFeedbackList[mockIndex].comment = ratingForm.comment
+				mockFeedbackList[mockIndex].userHasRated = true
+				if (!mockFeedbackList[mockIndex].averageRating) {
+					mockFeedbackList[mockIndex].averageRating = ratingForm.rating
+				} else {
+					mockFeedbackList[mockIndex].averageRating = ((mockFeedbackList[mockIndex].averageRating + ratingForm.rating) / 2).toFixed(1)
+				}
 			}
 
-			ElMessage.success(selectedFeedback.value.rating ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
+			ElMessage.success(selectedFeedback.value.userHasRated ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
 			ratingDialogVisible.value = false
 
 			// Refresh stats
-			stats.pending = mockFeedbackList.filter(f => !f.rating).length
-			stats.rated = mockFeedbackList.filter(f => f.rating).length
-			const ratedItems = mockFeedbackList.filter(f => f.rating)
+			stats.pending = mockFeedbackList.filter(f => !f.userHasRated).length
+			stats.rated = mockFeedbackList.filter(f => f.userHasRated).length
+			const ratedItems = mockFeedbackList.filter(f => f.averageRating)
 			stats.avgRating = ratedItems.length > 0
-				? (ratedItems.reduce((sum, f) => sum + f.rating, 0) / ratedItems.length).toFixed(1)
+				? (ratedItems.reduce((sum, f) => sum + (f.averageRating || 0), 0) / ratedItems.length).toFixed(1)
 				: 0
 		} else {
 			// Call real API
+			// Ensure rating is a number, not an array
+			const ratingValue = Array.isArray(ratingForm.rating) 
+				? ratingForm.rating[0] || ratingForm.rating.length 
+				: Number(ratingForm.rating) || 0;
+			
+			if (!ratingValue || ratingValue < 1 || ratingValue > 5) {
+				ElMessage.warning('Vui lòng chọn đánh giá từ 1 đến 5 sao');
+				submitting.value = false;
+				return;
+			}
+			
+			// Ensure feedbackId is valid
+			if (!selectedFeedback.value?.id) {
+				ElMessage.error('Không tìm thấy thông tin phản ánh');
+				submitting.value = false;
+				return;
+			}
+			
 			const ratingData = {
 				feedbackId: selectedFeedback.value.id,
-				doctorId: selectedFeedback.value.doctorId,
-				rating: ratingForm.rating,
-				comment: ratingForm.comment
+				doctorId: selectedFeedback.value.doctorId || null,
+				rating: ratingValue,
+				comment: ratingForm.comment || null
 			}
+			
+			// Submit rating data
 
-			if (selectedFeedback.value.rating) {
-				// Update existing rating
-				const existingRating = await ratingService.getRatingByFeedback(selectedFeedback.value.id)
+			// Always check if rating exists before deciding to create or update
+			try {
+				const response = await ratingService.getRatingByFeedback(selectedFeedback.value.id)
+				// API may return { data: ... } or direct object
+				const existingRating = response?.data || response
 				if (existingRating && existingRating.id) {
+					// Update existing rating
 					await ratingService.updateRating(existingRating.id, ratingData)
+				} else {
+					// Submit new rating
+					await ratingService.submitRating(ratingData)
 				}
-			} else {
-				// Submit new rating
-				await ratingService.submitRating(ratingData)
+			} catch (getRatingError) {
+				// If getRatingByFeedback fails (e.g., 404), try to create new rating
+				// But if create fails with "already exists", then try to update
+				try {
+					await ratingService.submitRating(ratingData)
+				} catch (createError) {
+					// If create fails because rating already exists, try to get and update
+					if (createError?.response?.data?.message?.includes('already exists') || 
+					    createError?.response?.data?.message?.includes('đã có') ||
+					    createError?.response?.data?.message?.includes('đã đánh giá')) {
+						const retryResponse = await ratingService.getRatingByFeedback(selectedFeedback.value.id)
+						const retryRating = retryResponse?.data || retryResponse
+						if (retryRating && retryRating.id) {
+							await ratingService.updateRating(retryRating.id, ratingData)
+						} else {
+							throw createError
+						}
+					} else {
+						// Show validation error message
+						const errorMessage = createError?.response?.data?.message || 
+						                   createError?.response?.data?.error || 
+						                   'Không thể tạo đánh giá. Vui lòng thử lại.'
+						ElMessage.error(errorMessage)
+						throw createError
+					}
+				}
 			}
 
-			ElMessage.success(selectedFeedback.value.rating ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
+			ElMessage.success(selectedFeedback.value.userHasRated ? 'Cập nhật đánh giá thành công!' : 'Đánh giá thành công!')
 			ratingDialogVisible.value = false
 
-			// Refresh data
+			// Refresh data to get updated average rating and userHasRated status
 			await fetchData()
 		}
 	} catch (error) {
+		// Error already handled above or by errorHandler
 		if (error !== false) {
-			ElMessage.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
+			handleApiError(error, 'Submit Rating')
 		}
 	} finally {
 		submitting.value = false

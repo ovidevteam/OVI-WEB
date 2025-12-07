@@ -111,6 +111,7 @@ import {
 import feedbackService from '@/services/feedbackService'
 import ImageGallery from '@/components/upload/ImageGallery.vue'
 import FeedbackTimeline from '@/components/feedback/FeedbackTimeline.vue'
+import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -171,8 +172,7 @@ const fetchFeedback = async () => {
 				]
 			}
 		} else {
-			console.error('Error fetching feedback:', error)
-			ElMessage.error('Lỗi khi tải chi tiết phản ánh')
+			handleApiError(error, 'Feedback Detail')
 		}
 	} finally {
 		loading.value = false

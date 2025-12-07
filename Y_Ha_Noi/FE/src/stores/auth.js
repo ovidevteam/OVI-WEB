@@ -38,14 +38,34 @@ export const useAuthStore = defineStore('auth', () => {
 		const savedLastActivity = localStorage.getItem('lastActivity')
 
 		if (savedToken && savedUser) {
-			// Decrypt token if it's encrypted
-			token.value = decryptToken(savedToken)
-			user.value = JSON.parse(savedUser)
-			refreshTokenValue.value = savedRefreshToken ? decryptToken(savedRefreshToken) : null
-			lastActivity.value = savedLastActivity ? parseInt(savedLastActivity) : Date.now()
+			try {
+				// Decrypt token if it's encrypted
+				token.value = decryptToken(savedToken)
+				
+				// Parse user data with validation
+				if (savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
+					user.value = JSON.parse(savedUser)
+				} else {
+					// Clear invalid user data
+					localStorage.removeItem('user')
+					user.value = null
+				}
+				
+				refreshTokenValue.value = savedRefreshToken ? decryptToken(savedRefreshToken) : null
+				lastActivity.value = savedLastActivity ? parseInt(savedLastActivity) : Date.now()
 
-			// Start session timeout monitoring
-			startSessionTimeout()
+				// Start session timeout monitoring
+				startSessionTimeout()
+			} catch (error) {
+				console.error('Error initializing auth:', error)
+				// Clear invalid data
+				localStorage.removeItem('token')
+				localStorage.removeItem('user')
+				localStorage.removeItem('refreshToken')
+				token.value = null
+				user.value = null
+				refreshTokenValue.value = null
+			}
 		}
 	}
 

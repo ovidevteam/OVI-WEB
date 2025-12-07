@@ -28,7 +28,7 @@
 			</el-form>
 
 			<!-- Table -->
-			<el-table :data="doctors" v-loading="loading" stripe>
+			<el-table :data="doctors" v-loading="loading" stripe row-key="id">
 				<el-table-column prop="code" label="Mã BS" width="100" />
 				<el-table-column prop="fullName" label="Họ tên" min-width="180" />
 				<el-table-column prop="specialty" label="Chuyên khoa" width="150" />
@@ -44,8 +44,8 @@
 				</el-table-column>
 				<el-table-column label="Thao tác" width="150" align="center" fixed="right">
 					<template #default="{ row }">
-						<el-button type="primary" link @click="openDialog(row)">Sửa</el-button>
-						<el-button type="danger" link @click="handleDelete(row)">Xóa</el-button>
+						<el-button type="primary" link @click="openDialog(row)" @mousedown.prevent @selectstart.prevent>Sửa</el-button>
+						<el-button type="danger" link @click="handleDelete(row)" @mousedown.prevent @selectstart.prevent>Xóa</el-button>
 					</template>
 				</el-table-column>
 			</el-table>
@@ -119,6 +119,7 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { SPECIALTIES } from '@/utils/constants'
 import doctorService from '@/services/doctorService'
 import departmentService from '@/services/departmentService'
+import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -171,7 +172,15 @@ const fetchData = async () => {
 			page: currentPage.value,
 			size: pageSize.value
 		})
-		doctors.value = response.data || []
+		const doctorList = response.data || []
+		// Map departmentId to departmentName
+		doctors.value = doctorList.map(doctor => {
+			if (doctor.departmentId && !doctor.departmentName) {
+				const dept = departments.value.find(d => d.id === doctor.departmentId)
+				doctor.departmentName = dept ? dept.name : ''
+			}
+			return doctor
+		})
 		total.value = response.total || 0
 	} catch (error) {
 		if (DEMO_MODE) {
@@ -183,8 +192,7 @@ const fetchData = async () => {
 			]
 			total.value = 3
 		} else {
-			console.error('Error fetching doctors:', error)
-			ElMessage.error('Lỗi khi tải danh sách bác sĩ')
+			handleApiError(error, 'Doctor Management')
 		}
 	} finally {
 		loading.value = false
@@ -194,6 +202,9 @@ const fetchData = async () => {
 const fetchDepartments = async () => {
 	try {
 		departments.value = await departmentService.getActiveList()
+		if (!departments.value || departments.value.length === 0) {
+			departments.value = []
+		}
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -203,7 +214,8 @@ const fetchDepartments = async () => {
 				{ id: 3, name: 'Da liễu' }
 			]
 		} else {
-			console.error('Error fetching departments:', error)
+			// Silently fail for department fetch - not critical
+			departments.value = []
 		}
 	}
 }
@@ -248,7 +260,7 @@ const handleSave = async () => {
 		fetchData()
 	} catch (error) {
 		if (error !== false) {
-			ElMessage.error('Có lỗi xảy ra')
+			handleApiError(error, 'Save Doctor')
 		}
 	} finally {
 		saveLoading.value = false
@@ -269,8 +281,10 @@ const handleDelete = async (row) => {
 }
 
 onMounted(() => {
-	fetchData()
-	fetchDepartments()
+	// Fetch departments first, then doctors (so we can map departmentName)
+	fetchDepartments().then(() => {
+		fetchData()
+	})
 })
 </script>
 

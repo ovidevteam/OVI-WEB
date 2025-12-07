@@ -154,12 +154,14 @@ import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { getRoleLabel } from '@/utils/helpers'
 import api from '@/services/api'
+import authService from '@/services/authService'
 import { mockNotifications } from '@/mock/db'
 import {
 	HomeFilled, Bell, BellFilled, User, Lock, SwitchButton, ArrowDown,
 	ChatDotRound, UserFilled, CircleCheckFilled
 } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { handleApiError } from '@/utils/errorHandler'
 
 const route = useRoute()
 const router = useRouter()
@@ -183,7 +185,6 @@ const fetchNotifications = async () => {
 		const response = await api.get('/notifications')
 		notifications.value = response.data || []
 	} catch (error) {
-		console.error('Error fetching notifications:', error)
 		// Don't set to mock data if DEMO_MODE is false
 		notifications.value = []
 	}
@@ -201,8 +202,7 @@ const markAllRead = async () => {
 			notifications.value.forEach(n => n.read = true)
 			ElMessage.success('Đã đánh dấu tất cả là đã đọc')
 		} catch (error) {
-			console.error('Error marking all as read:', error)
-			ElMessage.error('Lỗi khi đánh dấu đã đọc')
+			handleApiError(error, 'Mark notifications as read')
 		}
 	}
 }
@@ -213,7 +213,7 @@ const handleNotificationClick = async (item) => {
 			// Mark as read via API
 			await api.put(`/notifications/${item.id}/read`)
 		} catch (error) {
-			console.error('Error marking notification as read:', error)
+			// Error marking notification as read - non-critical
 		}
 	}
 	item.read = true
@@ -249,18 +249,57 @@ const profileForm = reactive({
 	role: ''
 })
 
-const openProfile = () => {
+const openProfile = async () => {
+	// Refresh user data from API before opening dialog to get latest info
+	try {
+		const currentUser = await authService.getCurrentUser()
+		authStore.user = currentUser
+		localStorage.setItem('user', JSON.stringify(currentUser))
+	} catch (error) {
+		// Error fetching current user - non-critical
+	}
+	
+	// Populate form with current user data
 	profileForm.fullName = authStore.user?.fullName || 'Quản trị viên'
 	profileForm.email = authStore.user?.email || 'admin@bvyhanoi.vn'
-	profileForm.phone = '0123 456 789'
+	profileForm.phone = authStore.user?.phone || ''
 	profileForm.department = authStore.user?.departmentName || 'Quản trị hệ thống'
 	profileForm.role = getRoleLabel(authStore.userRole)
 	profileDialogVisible.value = true
 }
 
-const saveProfile = () => {
-	ElMessage.success('Đã cập nhật thông tin cá nhân')
-	profileDialogVisible.value = false
+const saveProfile = async () => {
+	try {
+		// Call API to update user profile
+		// Note: api interceptor already unwraps response.data, so response is the User object directly
+		const updatedUser = await api.put('/auth/me', {
+			fullName: profileForm.fullName,
+			email: profileForm.email,
+			phone: profileForm.phone
+		})
+
+		// User updated successfully
+
+		// Check if updatedUser is valid
+		if (!updatedUser || !updatedUser.fullName) {
+			ElMessage.error('Lỗi: Dữ liệu trả về không hợp lệ')
+			return
+		}
+
+		// Update auth store with new user info
+		authStore.user = updatedUser
+		localStorage.setItem('user', JSON.stringify(updatedUser))
+
+		// Refresh profile form with updated data
+		profileForm.fullName = updatedUser.fullName || profileForm.fullName
+		profileForm.email = updatedUser.email || profileForm.email
+		profileForm.phone = updatedUser.phone || profileForm.phone
+
+		ElMessage.success('Đã cập nhật thông tin cá nhân')
+		profileDialogVisible.value = false
+	} catch (error) {
+		handleApiError(error, 'Update profile')
+	}
 }
 
 // Password Dialog
@@ -299,13 +338,26 @@ const changePassword = async () => {
 	if (!passwordFormRef.value) return
 	try {
 		await passwordFormRef.value.validate()
+		
+		// Call API to change password
+		await authService.changePassword({
+			oldPassword: passwordForm.currentPassword,
+			newPassword: passwordForm.newPassword
+		})
+
 		ElMessage.success('Đã đổi mật khẩu thành công')
 		passwordDialogVisible.value = false
 		passwordForm.currentPassword = ''
 		passwordForm.newPassword = ''
 		passwordForm.confirmPassword = ''
-	} catch {
-		// Validation failed
+	} catch (error) {
+		if (error.response?.data?.message) {
+			ElMessage.error(error.response.data.message)
+		} else if (error.message) {
+			ElMessage.error(error.message)
+		} else {
+			ElMessage.error('Lỗi khi đổi mật khẩu')
+		}
 	}
 }
 

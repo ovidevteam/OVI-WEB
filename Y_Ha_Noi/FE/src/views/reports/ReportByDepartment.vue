@@ -68,6 +68,7 @@
 					:data="reportData"
 					v-loading="loading"
 					stripe
+					row-key="id"
 					show-summary
 					row-class-name="clickable-row"
 					@row-click="handleRowClick"
@@ -196,7 +197,7 @@
 				</el-tabs>
 
 				<!-- Feedback List -->
-				<el-table :data="filteredFeedbacks" max-height="400" v-loading="detailLoading">
+				<el-table :data="filteredFeedbacks" max-height="400" v-loading="detailLoading" row-key="id">
 					<el-table-column prop="code" label="Mã PA" width="120" />
 					<el-table-column prop="content" label="Nội dung" min-width="200">
 						<template #default="{ row }">
@@ -234,7 +235,9 @@ import {
 	TrendCharts, ArrowRight
 } from '@element-plus/icons-vue'
 import reportService from '@/services/reportService'
+import feedbackService from '@/services/feedbackService'
 import { downloadBlob } from '@/utils/helpers'
+import { handleApiError } from '@/utils/errorHandler'
 import BarChart from '@/components/charts/BarChart.vue'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
@@ -287,12 +290,32 @@ const filteredFeedbacks = computed(() => {
 const fetchData = async () => {
 	loading.value = true
 	try {
+		// API returns array directly (not wrapped in data property)
 		const response = await reportService.getByDepartment({
 			startMonth: dateRange.value?.[0],
 			endMonth: dateRange.value?.[1]
 		})
-		reportData.value = response.data || []
-		Object.assign(summary, response.summary || {})
+		
+		// Handle both array response and object with data property
+		const data = Array.isArray(response) ? response : (response.data || [])
+		reportData.value = data
+		
+		// Calculate summary from data
+		if (data.length > 0) {
+			summary.total = data.reduce((sum, item) => sum + (item.total || 0), 0)
+			summary.completed = data.reduce((sum, item) => sum + (item.completed || 0), 0)
+			summary.processing = data.reduce((sum, item) => sum + (item.processing || 0), 0)
+			
+			// Calculate average time (if avgDays exists in data)
+			const totalDays = data.reduce((sum, item) => sum + ((item.avgDays || 0) * (item.total || 0)), 0)
+			summary.avgTime = summary.total > 0 ? (totalDays / summary.total).toFixed(1) : 0
+		} else {
+			// Reset summary if no data
+			summary.total = 0
+			summary.completed = 0
+			summary.processing = 0
+			summary.avgTime = 0
+		}
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -308,8 +331,7 @@ const fetchData = async () => {
 			summary.processing = 24
 			summary.avgTime = 2.1
 		} else {
-			console.error('Error fetching report data:', error)
-			ElMessage.error('Lỗi khi tải báo cáo theo phòng ban')
+			handleApiError(error, 'Report By Department')
 		}
 	} finally {
 		loading.value = false
@@ -320,26 +342,37 @@ const handleRowClick = async (row) => {
 	selectedDepartment.value = row
 	activeTab.value = 'all'
 	detailDialogVisible.value = true
-	await fetchDepartmentDetail(row.id)
+	await fetchDepartmentDetail(row.departmentId || row.id)
 }
 
 const fetchDepartmentDetail = async (departmentId) => {
 	detailLoading.value = true
 	try {
-		const response = await reportService.getDepartmentFeedbacks(departmentId)
-		detailFeedbacks.value = response.data || []
+		// Use feedbackService to get feedbacks by department
+		const response = await feedbackService.getList({ departmentId, size: 100 })
+		
+		// Handle both array and object with data property
+		const data = Array.isArray(response) ? response : (response.data || [])
+		detailFeedbacks.value = data.map(f => ({
+			id: f.id,
+			code: f.code,
+			content: f.content,
+			status: f.status,
+			createdDate: f.receivedDate ? new Date(f.receivedDate).toLocaleDateString('vi-VN') : '',
+			handlerName: f.handlerName || null
+		}))
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
 			detailFeedbacks.value = [
 				{ id: 1, code: 'PA-2024-001', content: 'Thời gian chờ khám quá lâu, bệnh nhân phải đợi hơn 2 tiếng', status: 'COMPLETED', createdDate: '15/11/2024', handlerName: 'BS. Nguyễn Văn A' },
 				{ id: 2, code: 'PA-2024-002', content: 'Nhân viên lễ tân thiếu thân thiện với bệnh nhân cao tuổi', status: 'PROCESSING', createdDate: '16/11/2024', handlerName: 'Trần Thị B' },
-				{ id: 3, code: 'PA-2024-003', content: 'Phòng khám thiếu sạch sẽ, cần cải thiện vệ sinh', status: 'PENDING', createdDate: '17/11/2024', handlerName: null },
+				{ id: 3, code: 'PA-2024-003', content: 'Phòng khám thiếu sạch sẽ, cần cải thiện vệ sinh', status: 'NEW', createdDate: '17/11/2024', handlerName: null },
 				{ id: 4, code: 'PA-2024-004', content: 'Khen ngợi bác sĩ điều trị nhiệt tình, chuyên nghiệp', status: 'COMPLETED', createdDate: '18/11/2024', handlerName: 'BS. Lê Văn C' },
 				{ id: 5, code: 'PA-2024-005', content: 'Cơ sở vật chất xuống cấp, máy lạnh không hoạt động', status: 'PROCESSING', createdDate: '19/11/2024', handlerName: 'Phạm Văn D' }
 			]
 		} else {
-			console.error('Error fetching department detail:', error)
+			handleApiError(error, 'Department Detail')
 			detailFeedbacks.value = []
 		}
 	} finally {
@@ -389,7 +422,7 @@ const exportExcel = async () => {
 		downloadBlob(blob, `bao-cao-theo-phong-${Date.now()}.xlsx`)
 		ElMessage.success('Xuất Excel thành công!')
 	} catch (error) {
-		ElMessage.error('Xuất Excel thất bại!')
+		handleApiError(error, 'Export Excel')
 	}
 }
 

@@ -1,0 +1,159 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - img "Logo" [ref=e7]
+        - generic [ref=e8]:
+          - generic [ref=e9]: Bệnh viện ĐH Y Hà Nội
+          - generic [ref=e10]: Quản lý Phản ánh
+      - menubar [ref=e14]:
+        - menuitem "Dashboard" [ref=e15] [cursor=pointer]:
+          - img [ref=e17]
+          - text: Dashboard
+        - menuitem "Phản ánh 4" [expanded] [ref=e21]:
+          - generic [ref=e22] [cursor=pointer]:
+            - img [ref=e24]
+            - generic [ref=e27]: Phản ánh
+            - superscript [ref=e29]: "4"
+            - img [ref=e31]
+          - menu [ref=e33]:
+            - menuitem "Danh sách 4" [ref=e34] [cursor=pointer]:
+              - img [ref=e36]
+              - generic [ref=e38]: Danh sách
+              - superscript [ref=e40]: "4"
+            - menuitem "Nhập mới" [ref=e41] [cursor=pointer]:
+              - img [ref=e43]
+              - text: Nhập mới
+      - generic [ref=e46]: Version 1.2.0
+    - generic [ref=e47]:
+      - banner [ref=e48]:
+        - generic [ref=e49]:
+          - button [ref=e50] [cursor=pointer]:
+            - img [ref=e52]
+          - navigation "Breadcrumb" [ref=e54]:
+            - generic [ref=e55]:
+              - link [ref=e56]:
+                - img [ref=e58]
+              - text: /
+            - link "Nhập Phản ánh mới" [ref=e61]
+        - generic [ref=e62]:
+          - img [ref=e67] [cursor=pointer]
+          - button "TT Trần Thị Tiếp nhận Người tiếp nhận" [ref=e72] [cursor=pointer]:
+            - generic [ref=e73]: TT
+            - generic [ref=e74]:
+              - generic [ref=e75]: Trần Thị Tiếp nhận
+              - generic [ref=e76]: Người tiếp nhận
+            - img [ref=e78]
+      - main [ref=e80]:
+        - generic [ref=e82]:
+          - heading "Nhập Phản ánh mới" [level=3] [ref=e84]
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - heading "Thông tin phản ánh" [level=4] [ref=e87]:
+                - img [ref=e89]
+                - text: Thông tin phản ánh
+              - generic [ref=e91]:
+                - generic [ref=e93]:
+                  - generic [ref=e94]: "* Kênh tiếp nhận"
+                  - generic [ref=e97] [cursor=pointer]:
+                    - generic:
+                      - combobox "* Kênh tiếp nhận" [ref=e99]
+                      - generic [ref=e100]: Trực tiếp
+                    - img [ref=e103]
+                - generic [ref=e106]:
+                  - generic [ref=e107]: "* Mức độ"
+                  - radiogroup "* Mức độ" [ref=e109]:
+                    - generic [ref=e110]:
+                      - radio "Khẩn cấp" [ref=e111]
+                      - generic [ref=e112] [cursor=pointer]: Khẩn cấp
+                    - generic [ref=e113]:
+                      - radio "Cao" [ref=e114]
+                      - generic [ref=e115] [cursor=pointer]: Cao
+                    - generic [ref=e116]:
+                      - radio "Trung bình" [checked] [ref=e117]
+                      - generic [ref=e118] [cursor=pointer]: Trung bình
+                    - generic [ref=e119]:
+                      - radio "Thấp" [ref=e120]
+                      - generic [ref=e121] [cursor=pointer]: Thấp
+              - generic [ref=e122]:
+                - generic [ref=e124]:
+                  - generic [ref=e125]: "* Phòng liên quan"
+                  - generic [ref=e128] [cursor=pointer]:
+                    - generic:
+                      - combobox "* Phòng liên quan" [expanded] [active] [ref=e130]
+                      - generic [ref=e131]: Chọn phòng ban
+                    - img [ref=e134]
+                - generic [ref=e137]:
+                  - generic [ref=e138]: Bác sĩ liên quan
+                  - generic [ref=e141] [cursor=pointer]:
+                    - generic:
+                      - combobox "Bác sĩ liên quan" [ref=e143]
+                      - generic [ref=e144]: Chọn bác sĩ (nếu có)
+                    - img [ref=e147]
+              - generic [ref=e149]:
+                - generic [ref=e150]: "* Nội dung"
+                - generic [ref=e152]:
+                  - textbox "* Nội dung" [ref=e153]:
+                    - /placeholder: Nhập nội dung phản ánh chi tiết...
+                  - generic [ref=e154]: 0 / 1000
+              - generic [ref=e155]:
+                - generic [ref=e156]: Ghi chú
+                - textbox "Ghi chú" [ref=e159]:
+                  - /placeholder: Ghi chú thêm (nếu có)...
+            - generic [ref=e160]:
+              - heading "Hình ảnh đính kèm" [level=4] [ref=e161]:
+                - img [ref=e163]
+                - text: Hình ảnh đính kèm
+              - generic [ref=e167]:
+                - list [ref=e168]:
+                  - button [ref=e169] [cursor=pointer]:
+                    - img [ref=e171]
+                - generic [ref=e173]: Tối đa 10 ảnh, mỗi ảnh không quá 5MB
+            - generic [ref=e174]:
+              - button "Hủy" [ref=e175] [cursor=pointer]:
+                - generic [ref=e176]: Hủy
+              - button "Lưu phản ánh" [ref=e177] [cursor=pointer]:
+                - generic [ref=e178]: Lưu phản ánh
+      - contentinfo [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]: © 2025 Bệnh viện ĐH Y Hà Nội. All rights reserved.
+          - generic [ref=e182]:
+            - text: Developed by
+            - link "OVI Team" [ref=e183] [cursor=pointer]:
+              - /url: "#"
+  - tooltip [ref=e184]:
+    - listbox [ref=e188]:
+      - option "Da liễu" [ref=e189] [cursor=pointer]
+      - option "Sản khoa" [ref=e190] [cursor=pointer]
+      - option "Răng hàm mặt" [ref=e191] [cursor=pointer]
+      - option "Test Auto Code" [ref=e192] [cursor=pointer]
+      - option "Nhi khoa" [ref=e193] [cursor=pointer]
+      - option "Test Dept 1764988852970" [ref=e194] [cursor=pointer]
+      - option "Test Dept 1764989049878" [ref=e195] [cursor=pointer]
+      - option "Test Dept 1764989111150" [ref=e196] [cursor=pointer]
+      - option "Test Dept 1764989230319" [ref=e197] [cursor=pointer]
+      - option "Test Dept 1764989300111" [ref=e198] [cursor=pointer]
+      - option "Test Dept 1764989364634" [ref=e199] [cursor=pointer]
+      - option "Test Dept 1764989429631" [ref=e200] [cursor=pointer]
+      - option "Test Dept 1764989671491" [ref=e201] [cursor=pointer]
+      - option "Test Dept 1764989739755" [ref=e202] [cursor=pointer]
+      - option "Test Dept 1764989782172" [ref=e203] [cursor=pointer]
+      - option "Test Dept 1764989848515" [ref=e204] [cursor=pointer]
+      - option "Nội khoa" [ref=e205] [cursor=pointer]
+      - option "Ngoại khoa" [ref=e206] [cursor=pointer]
+      - option "Test Dept 1765085202087" [ref=e207] [cursor=pointer]
+      - option "Test Dept 1765085521019" [ref=e208] [cursor=pointer]
+      - option "Test Dept 1765086000543" [ref=e209] [cursor=pointer]
+      - option "Test Dept 1765086129616" [ref=e210] [cursor=pointer]
+      - option "Test Dept 1765086329472" [ref=e211] [cursor=pointer]
+      - option "Test Dept 1765086531150" [ref=e212] [cursor=pointer]
+      - option "Test Dept 1765086623281" [ref=e213] [cursor=pointer]
+      - option "Test Dept 1765086902699" [ref=e214] [cursor=pointer]
+      - option "Test Dept 1765086963538" [ref=e215] [cursor=pointer]
+      - option "Test Dept 1765087018392" [ref=e216] [cursor=pointer]
+      - option "Test Dept 1765087076634" [ref=e217] [cursor=pointer]
+      - option "Test Dept 1765087346289" [ref=e218] [cursor=pointer]
+```

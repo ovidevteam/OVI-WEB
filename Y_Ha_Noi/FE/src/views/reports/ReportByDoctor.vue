@@ -30,6 +30,7 @@
 				:data="reportData"
 				v-loading="loading"
 				stripe
+				row-key="id"
 				row-class-name="clickable-row"
 				@row-click="handleRowClick"
 			>
@@ -156,7 +157,7 @@
 				<!-- Feedback List -->
 				<div class="detail-section">
 					<h4 class="section-title">Danh sách phản ánh đã xử lý</h4>
-					<el-table :data="doctorFeedbacks" max-height="350" v-loading="detailLoading">
+					<el-table :data="doctorFeedbacks" max-height="350" v-loading="detailLoading" row-key="id">
 						<el-table-column prop="code" label="Mã PA" width="120" />
 						<el-table-column prop="content" label="Nội dung" min-width="200">
 							<template #default="{ row }">
@@ -202,6 +203,7 @@ import { Download, User, Timer, TrendCharts, ArrowRight } from '@element-plus/ic
 import reportService from '@/services/reportService'
 import departmentService from '@/services/departmentService'
 import { downloadBlob } from '@/utils/helpers'
+import { handleApiError } from '@/utils/errorHandler'
 import BarChart from '@/components/charts/BarChart.vue'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
@@ -245,12 +247,12 @@ const fetchData = async () => {
 		const response = await reportService.getByDoctor({
 			departmentId: filterDepartment.value,
 			startMonth: dateRange.value?.[0],
-			endMonth: dateRange.value?.[1],
-			page: currentPage.value,
-			size: pageSize.value
+			endMonth: dateRange.value?.[1]
 		})
-		reportData.value = response.data || []
-		total.value = response.total || 0
+		// API returns array directly
+		const data = Array.isArray(response) ? response : (response.data || [])
+		reportData.value = data
+		total.value = data.length
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -263,8 +265,7 @@ const fetchData = async () => {
 			]
 			total.value = 5
 		} else {
-			console.error('Error fetching report data:', error)
-			ElMessage.error('Lỗi khi tải báo cáo theo bác sĩ')
+			handleApiError(error, 'Report By Doctor')
 		}
 	} finally {
 		loading.value = false
@@ -299,8 +300,20 @@ const handleRowClick = async (row) => {
 const fetchDoctorDetail = async (doctorId) => {
 	detailLoading.value = true
 	try {
-		const response = await reportService.getDoctorFeedbacks(doctorId)
-		doctorFeedbacks.value = response.data || []
+		// Use feedbackService to get feedbacks by doctor
+		const response = await feedbackService.getList({ doctorId, size: 100 })
+		
+		// Handle both array and object with data property
+		const data = Array.isArray(response) ? response : (response.data || [])
+		doctorFeedbacks.value = data.map(f => ({
+			id: f.id,
+			code: f.code,
+			content: f.content,
+			status: f.status,
+			processingTime: f.completedDate && f.receivedDate ? 
+				Math.round((new Date(f.completedDate) - new Date(f.receivedDate)) / (1000 * 60 * 60 * 24) * 10) / 10 : null,
+			completedDate: f.completedDate ? new Date(f.completedDate).toLocaleDateString('vi-VN') : null
+		}))
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -312,7 +325,7 @@ const fetchDoctorDetail = async (doctorId) => {
 				{ id: 5, code: 'PA-2024-015', content: 'Cần cải thiện thái độ phục vụ trong giờ cao điểm', status: 'PROCESSING', processingTime: 1.5, completedDate: null }
 			]
 		} else {
-			console.error('Error fetching doctor detail:', error)
+			handleApiError(error, 'Doctor Detail')
 			doctorFeedbacks.value = []
 		}
 	} finally {
@@ -357,7 +370,7 @@ const exportExcel = async () => {
 		downloadBlob(blob, `bao-cao-theo-bac-si-${Date.now()}.xlsx`)
 		ElMessage.success('Xuất Excel thành công!')
 	} catch (error) {
-		ElMessage.error('Xuất Excel thất bại!')
+		handleApiError(error, 'Export Excel')
 	}
 }
 

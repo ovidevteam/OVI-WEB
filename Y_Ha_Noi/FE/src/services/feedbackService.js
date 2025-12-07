@@ -38,7 +38,7 @@ const feedbackService = {
 	// Cập nhật xử lý phản ánh
 	async updateProcessing(feedbackId, data) {
 		if (DEMO_MODE) {
-			console.log(`DEMO MODE: Updating processing for feedback ${feedbackId}:`, data)
+			// Demo mode - return mock response
 			return Promise.resolve({
 				success: true,
 				message: 'Cập nhật xử lý thành công (DEMO)'
@@ -50,8 +50,7 @@ const feedbackService = {
 	// Lấy lịch sử xử lý
 	async getProcessHistory(feedbackId) {
 		if (DEMO_MODE) {
-			console.log(`DEMO MODE: Getting process history for feedback ${feedbackId}`)
-			// Return empty - will use mock data in component
+			// Demo mode - return empty (will use mock data in component)
 			return Promise.reject(new Error('Demo mode'))
 		}
 		const response = await api.get(`/feedbacks/${feedbackId}/history`)

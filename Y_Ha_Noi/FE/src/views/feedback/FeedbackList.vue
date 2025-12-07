@@ -82,9 +82,11 @@
 				:data="feedbacks"
 				v-loading="loading"
 				stripe
+				row-key="id"
 				style="width: 100%"
 				@row-click="handleRowClick"
 				row-class-name="clickable-row"
+				aria-label="Danh sách phản ánh"
 			>
 				<el-table-column prop="code" label="Số PA" width="145" />
 				<el-table-column prop="receivedDate" label="Ngày nhận" width="105">
@@ -124,7 +126,7 @@
 				<el-table-column prop="handlerName" label="Người xử lý" min-width="130" />
 				<el-table-column label="" width="80" fixed="right" align="center">
 					<template #default="{ row }">
-						<el-button type="primary" link @click.stop="viewDetail(row.id)">
+						<el-button type="primary" link @click.stop="viewDetail(row.id)" @mousedown.prevent @selectstart.prevent>
 							Chi tiết
 						</el-button>
 					</template>
@@ -160,6 +162,7 @@ import {
 } from '@/utils/helpers'
 import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'
+import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -192,7 +195,6 @@ const fetchData = async () => {
 		feedbacks.value = response.data || []
 		total.value = response.total || 0
 	} catch (error) {
-		console.error('Error fetching feedbacks:', error)
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
 			feedbacks.value = [
@@ -252,7 +254,7 @@ const fetchDepartments = async () => {
 				{ id: 4, name: 'Sản khoa' }
 			]
 		} else {
-			console.error('Failed to load departments:', error)
+			// Failed to load departments - not critical
 		}
 	}
 }
@@ -330,6 +332,36 @@ onMounted(() => {
 
 :deep(.el-table__row:hover) {
 	cursor: pointer;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+	.filter-form {
+		flex-direction: column;
+	}
+	
+	.filter-form .el-form-item {
+		width: 100%;
+		margin-right: 0;
+	}
+	
+	:deep(.el-table) {
+		font-size: 12px;
+	}
+	
+	:deep(.el-table th),
+	:deep(.el-table td) {
+		padding: 8px 4px;
+	}
+	
+	.pagination-wrapper {
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+	
+	:deep(.el-pagination) {
+		justify-content: center;
+	}
 }
 </style>
 

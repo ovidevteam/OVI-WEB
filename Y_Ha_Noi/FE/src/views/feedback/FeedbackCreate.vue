@@ -142,6 +142,7 @@ import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'
 import doctorService from '@/services/doctorService'
 import ImageUpload from '@/components/upload/ImageUpload.vue'
+import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -197,7 +198,7 @@ const fetchDepartments = async () => {
 				{ id: 4, name: 'Sản khoa' }
 			]
 		} else {
-			console.error('Error fetching departments:', error)
+			// Silently fail for department fetch - not critical
 		}
 	}
 }
@@ -215,7 +216,7 @@ const handleDepartmentChange = async (departmentId) => {
 					{ id: 2, fullName: 'BS. Trần Thị B' }
 				]
 			} else {
-				console.error('Error fetching doctors:', error)
+				// Silently fail for doctor fetch - not critical
 				doctors.value = []
 			}
 		}
@@ -236,7 +237,7 @@ const handleSubmit = async () => {
 		router.push('/feedback')
 	} catch (error) {
 		if (error !== false) {
-			ElMessage.error('Có lỗi xảy ra. Vui lòng thử lại.')
+			handleApiError(error, 'Create Feedback')
 		}
 	} finally {
 		loading.value = false

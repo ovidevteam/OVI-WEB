@@ -41,9 +41,11 @@
 				:collapse-transition="false"
 				router
 				class="sidebar-menu"
+				role="navigation"
+				aria-label="Menu điều hướng chính"
 			>
 				<!-- Dashboard -->
-				<el-menu-item index="/dashboard">
+				<el-menu-item index="/dashboard" aria-label="Trang tổng quan">
 					<el-icon><Odometer /></el-icon>
 					<template #title>Dashboard</template>
 				</el-menu-item>
@@ -142,7 +144,7 @@
 		<div class="sidebar-footer">
 			<transition name="fade">
 				<div v-show="!uiStore.sidebarCollapsed" class="version-info">
-					<span>Version 1.0.0</span>
+					<span>Version 1.3.0</span>
 				</div>
 			</transition>
 		</div>
@@ -170,10 +172,10 @@ const uiStore = useUIStore()
 
 // Feedback stats for badge counts
 const feedbackStats = ref({
-	total: 0,       // Tổng PA chưa xử lý (hiển thị trên menu Phản ánh)
-	pending: 0,     // Danh sách chưa xử lý
-	myPending: 0,    // Của tôi đang chờ xử lý
-	needRating: 0    // PA đã hoàn thành cần đánh giá
+	total: 0,       // Tổng = pending + needRating + myPending - hiển thị trên menu Phản ánh
+	pending: 0,     // Danh sách chưa xử lý (NEW + PROCESSING) - hiển thị trên menu Danh sách
+	myPending: 0,    // Của tôi đang chờ xử lý (NEW + PROCESSING assigned to me)
+	needRating: 0    // PA đã hoàn thành cần đánh giá - hiển thị trên menu Đánh giá
 })
 
 
@@ -181,29 +183,40 @@ const fetchFeedbackStats = async () => {
 	if (DEMO_MODE) {
 		// Use mock data from db.js
 		feedbackStats.value = { ...mockFeedbackStats }
+		// Calculate total = pending + needRating + myPending
+		feedbackStats.value.total = feedbackStats.value.pending + feedbackStats.value.needRating + feedbackStats.value.myPending
 		return
 	}
 
 	try {
-		// Fetch pending feedbacks count
-		const pendingResponse = await feedbackService.getList({ status: 'NEW', size: 1 })
-		feedbackStats.value.pending = pendingResponse.total || 0
+		// Fetch NEW feedbacks count
+		const newResponse = await feedbackService.getList({ status: 'NEW', size: 1 })
+		const newCount = newResponse.total || 0
 
-		// Fetch processing feedbacks count
+		// Fetch PROCESSING feedbacks count
 		const processingResponse = await feedbackService.getList({ status: 'PROCESSING', size: 1 })
 		const processingCount = processingResponse.total || 0
 		
-		// Total unprocessed = NEW + PROCESSING
-		feedbackStats.value.total = feedbackStats.value.pending + processingCount
+		// Total unprocessed = NEW + PROCESSING (for "Danh sách" menu)
+		const totalUnprocessed = newCount + processingCount
+		feedbackStats.value.pending = totalUnprocessed
 
 		// Fetch my pending feedbacks (if handler)
 		if (authStore.isHandler) {
 			try {
-				const myFeedbacks = await feedbackService.getMyFeedbacks()
-				feedbackStats.value.myPending = myFeedbacks.filter(f => f.status === 'NEW').length || 0
+				const response = await feedbackService.getMyFeedbacks()
+				// Handle both array and object response formats
+				const myFeedbacks = Array.isArray(response) ? response : (response?.data || [])
+				// Count both NEW and PROCESSING feedbacks (feedbacks that need action)
+				const myNewCount = myFeedbacks.filter(f => f.status === 'NEW').length
+				const myProcessingCount = myFeedbacks.filter(f => f.status === 'PROCESSING').length
+				feedbackStats.value.myPending = myNewCount + myProcessingCount
 			} catch (error) {
-				console.error('Error fetching my feedbacks:', error)
+				// Error fetching my feedbacks - non-critical
+				feedbackStats.value.myPending = 0
 			}
+		} else {
+			feedbackStats.value.myPending = 0
 		}
 
 		// Fetch completed feedbacks needing rating
@@ -215,12 +228,23 @@ const fetchFeedbackStats = async () => {
 				})
 				feedbackStats.value.needRating = completedResponse.total || 0
 			} catch (error) {
-				console.error('Error fetching ratings:', error)
+				// Error fetching ratings - non-critical
+				feedbackStats.value.needRating = 0
 			}
+		} else {
+			feedbackStats.value.needRating = 0
 		}
+		
+		// Total = tổng của Danh sách + Đánh giá + Của tôi
+		feedbackStats.value.total = feedbackStats.value.pending + feedbackStats.value.needRating + feedbackStats.value.myPending
 	} catch (error) {
-		console.error('Error fetching feedback stats:', error)
-		// Don't set to mock data if DEMO_MODE is false
+		// Error fetching feedback stats - set all to 0
+		feedbackStats.value = {
+			total: 0,
+			pending: 0,
+			myPending: 0,
+			needRating: 0
+		}
 	}
 }
 

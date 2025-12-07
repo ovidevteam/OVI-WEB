@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, ref, shallowRef } from 'vue'
 import { Bar } from 'vue-chartjs'
 import {
 	Chart as ChartJS,
@@ -31,7 +31,24 @@ const props = defineProps({
 	}
 })
 
-const chartData = computed(() => props.data)
+// Use shallowRef for better performance with large datasets
+const chartData = shallowRef(props.data)
+let updateTimeout = null
+
+// Memoize chart data and debounce updates
+watch(() => props.data, (newData) => {
+	if (updateTimeout) {
+		clearTimeout(updateTimeout)
+	}
+	
+	// Debounce updates to prevent excessive re-renders
+	updateTimeout = setTimeout(() => {
+		// Only update if data actually changed
+		if (JSON.stringify(chartData.value) !== JSON.stringify(newData)) {
+			chartData.value = { ...newData }
+		}
+	}, 100)
+}, { deep: true })
 
 const chartOptions = {
 	responsive: true,

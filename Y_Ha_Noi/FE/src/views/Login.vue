@@ -126,7 +126,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import authService from '@/services/authService'
@@ -155,6 +155,13 @@ const rules = {
 	]
 }
 
+// Restore saved username on mount
+const savedUsername = localStorage.getItem('rememberedUsername')
+if (savedUsername) {
+	form.username = savedUsername
+	form.remember = true
+}
+
 const handleLogin = async () => {
 	if (!formRef.value) return
 
@@ -166,6 +173,14 @@ const handleLogin = async () => {
 		})
 
 		if (result.success) {
+			// Save username if remember me is checked
+			if (form.remember) {
+				localStorage.setItem('rememberedUsername', form.username)
+			} else {
+				// Remove saved username if unchecked
+				localStorage.removeItem('rememberedUsername')
+			}
+			
 			ElMessage.success('Đăng nhập thành công!')
 			router.push('/dashboard')
 		} else {
