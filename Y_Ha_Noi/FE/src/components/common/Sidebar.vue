@@ -44,11 +44,11 @@
 				role="navigation"
 				aria-label="Menu điều hướng chính"
 			>
-				<!-- Dashboard -->
-				<el-menu-item index="/dashboard" aria-label="Trang tổng quan">
-					<el-icon><Odometer /></el-icon>
-					<template #title>Dashboard</template>
-				</el-menu-item>
+			<!-- Dashboard -->
+			<el-menu-item index="/dashboard" v-if="authStore.isAdmin || authStore.isLeader" aria-label="Trang tổng quan">
+				<el-icon><Odometer /></el-icon>
+				<template #title>Dashboard</template>
+			</el-menu-item>
 
 				<!-- Feedback -->
 				<el-sub-menu index="feedback" v-if="canViewFeedback" class="menu-with-badge">
@@ -144,7 +144,7 @@
 		<div class="sidebar-footer">
 			<transition name="fade">
 				<div v-show="!uiStore.sidebarCollapsed" class="version-info">
-					<span>Version 1.3.0</span>
+					<span>Version 1.4.0</span>
 				</div>
 			</transition>
 		</div>
@@ -156,110 +156,39 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
-import feedbackService from '@/services/feedbackService'
-import ratingService from '@/services/ratingService'
-import { mockFeedbackStats } from '@/mock/db'
+import { useFeedbackStats } from '@/composables/useFeedbackStats'
 import {
 	Odometer, ChatDotRound, List, Plus, User, Setting, UserFilled,
 	OfficeBuilding, FirstAidKit, DataAnalysis, TrendCharts, Picture, Star
 } from '@element-plus/icons-vue'
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
-
 const route = useRoute()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
 
-// Feedback stats for badge counts
-const feedbackStats = ref({
-	total: 0,       // Tổng = pending + needRating + myPending - hiển thị trên menu Phản ánh
-	pending: 0,     // Danh sách chưa xử lý (NEW + PROCESSING) - hiển thị trên menu Danh sách
-	myPending: 0,    // Của tôi đang chờ xử lý (NEW + PROCESSING assigned to me)
-	needRating: 0    // PA đã hoàn thành cần đánh giá - hiển thị trên menu Đánh giá
-})
-
-
-const fetchFeedbackStats = async () => {
-	if (DEMO_MODE) {
-		// Use mock data from db.js
-		feedbackStats.value = { ...mockFeedbackStats }
-		// Calculate total = pending + needRating + myPending
-		feedbackStats.value.total = feedbackStats.value.pending + feedbackStats.value.needRating + feedbackStats.value.myPending
-		return
-	}
-
-	try {
-		// Fetch NEW feedbacks count
-		const newResponse = await feedbackService.getList({ status: 'NEW', size: 1 })
-		const newCount = newResponse.total || 0
-
-		// Fetch PROCESSING feedbacks count
-		const processingResponse = await feedbackService.getList({ status: 'PROCESSING', size: 1 })
-		const processingCount = processingResponse.total || 0
-		
-		// Total unprocessed = NEW + PROCESSING (for "Danh sách" menu)
-		const totalUnprocessed = newCount + processingCount
-		feedbackStats.value.pending = totalUnprocessed
-
-		// Fetch my pending feedbacks (if handler)
-		if (authStore.isHandler) {
-			try {
-				const response = await feedbackService.getMyFeedbacks()
-				// Handle both array and object response formats
-				const myFeedbacks = Array.isArray(response) ? response : (response?.data || [])
-				// Count both NEW and PROCESSING feedbacks (feedbacks that need action)
-				const myNewCount = myFeedbacks.filter(f => f.status === 'NEW').length
-				const myProcessingCount = myFeedbacks.filter(f => f.status === 'PROCESSING').length
-				feedbackStats.value.myPending = myNewCount + myProcessingCount
-			} catch (error) {
-				// Error fetching my feedbacks - non-critical
-				feedbackStats.value.myPending = 0
-			}
-		} else {
-			feedbackStats.value.myPending = 0
-		}
-
-		// Fetch completed feedbacks needing rating
-		if (authStore.hasRole(['ADMIN', 'LEADER', 'HANDLER'])) {
-			try {
-				const completedResponse = await ratingService.getCompletedFeedbacks({ 
-					hasRating: false, 
-					size: 1 
-				})
-				feedbackStats.value.needRating = completedResponse.total || 0
-			} catch (error) {
-				// Error fetching ratings - non-critical
-				feedbackStats.value.needRating = 0
-			}
-		} else {
-			feedbackStats.value.needRating = 0
-		}
-		
-		// Total = tổng của Danh sách + Đánh giá + Của tôi
-		feedbackStats.value.total = feedbackStats.value.pending + feedbackStats.value.needRating + feedbackStats.value.myPending
-	} catch (error) {
-		// Error fetching feedback stats - set all to 0
-		feedbackStats.value = {
-			total: 0,
-			pending: 0,
-			myPending: 0,
-			needRating: 0
-		}
-	}
-}
+// Use composable for feedback stats
+const { feedbackStats, fetchFeedbackStats } = useFeedbackStats()
 
 let statsInterval = null
+
+// Listen for refresh events from other components
+const handleRefreshStats = () => {
+	fetchFeedbackStats()
+}
 
 onMounted(() => {
 	fetchFeedbackStats()
 	// Refresh stats periodically (every 30 seconds)
 	statsInterval = setInterval(fetchFeedbackStats, 30000)
+	// Listen for custom events to refresh stats immediately
+	window.addEventListener('refresh-feedback-stats', handleRefreshStats)
 })
 
 onBeforeUnmount(() => {
 	if (statsInterval) {
 		clearInterval(statsInterval)
 	}
+	window.removeEventListener('refresh-feedback-stats', handleRefreshStats)
 })
 
 const hasSquareLogo = ref(true) // Logo vuông đã được cung cấp

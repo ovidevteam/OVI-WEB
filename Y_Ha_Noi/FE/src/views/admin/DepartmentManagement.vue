@@ -8,8 +8,41 @@
 				</el-button>
 			</div>
 
+			<!-- Filters -->
+			<el-form :inline="true" class="filter-form">
+				<el-form-item label="Tìm kiếm">
+					<el-input
+						v-model="searchKeyword"
+						placeholder="Tìm theo tên, mã phòng..."
+						:prefix-icon="Search"
+						clearable
+						style="width: 250px"
+						@input="handleSearch"
+					/>
+				</el-form-item>
+				<el-form-item label="Trạng thái">
+					<el-select 
+						v-model="filterStatus" 
+						placeholder="Chọn trạng thái" 
+						clearable 
+						style="width: 180px"
+						@change="handleSearch"
+					>
+						<el-option label="Hoạt động" value="ACTIVE" />
+						<el-option label="Ngừng" value="INACTIVE" />
+					</el-select>
+				</el-form-item>
+			</el-form>
+
 			<!-- Table -->
-			<el-table :data="departments" v-loading="loading" stripe row-key="id">
+			<el-table 
+				:data="optimizedDepartments" 
+				v-loading="loading" 
+				stripe 
+				row-key="id"
+				:default-sort="{ prop: 'code', order: 'ascending' }"
+				style="width: 100%"
+			>
 				<el-table-column prop="code" label="Mã phòng" width="120" />
 				<el-table-column prop="name" label="Tên phòng" min-width="200" />
 				<el-table-column prop="managerName" label="Trưởng phòng" width="180" />
@@ -88,9 +121,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, shallowRef } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import departmentService from '@/services/departmentService'
 import userService from '@/services/userService'
 import { handleApiError } from '@/utils/errorHandler'
@@ -99,11 +132,37 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const loading = ref(false)
 const saveLoading = ref(false)
-const departments = ref([])
+// Use shallowRef for better performance with large arrays
+const departments = shallowRef([])
 const users = ref([])
 const handlers = ref([])
 const dialogVisible = ref(false)
 const formRef = ref(null)
+
+// Filter state
+const searchKeyword = ref('')
+const filterStatus = ref('')
+
+// Computed property for optimized department list with filtering
+const optimizedDepartments = computed(() => {
+	let filtered = departments.value
+	
+	// Filter by keyword (search in name, code)
+	if (searchKeyword.value) {
+		const keyword = searchKeyword.value.toLowerCase()
+		filtered = filtered.filter(dept => 
+			dept.name?.toLowerCase().includes(keyword) ||
+			dept.code?.toLowerCase().includes(keyword)
+		)
+	}
+	
+	// Filter by status
+	if (filterStatus.value) {
+		filtered = filtered.filter(dept => dept.status === filterStatus.value)
+	}
+	
+	return filtered
+})
 
 const form = reactive({
 	id: null,
@@ -127,10 +186,18 @@ const rules = {
 	]
 }
 
+const handleSearch = () => {
+	// Filtering is done in computed property optimizedDepartments, no need to refetch
+}
+
 const fetchData = async () => {
 	loading.value = true
 	try {
-		departments.value = await departmentService.getList()
+		const params = {}
+		if (filterStatus.value) {
+			params.status = filterStatus.value
+		}
+		departments.value = await departmentService.getList(params)
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode

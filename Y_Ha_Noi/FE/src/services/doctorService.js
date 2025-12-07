@@ -1,8 +1,12 @@
 import api from './api'
 
 const doctorService = {
-	async getList(params = {}) {
-		return await api.get('/doctors', { params })
+	async getList(params = {}, forceRefresh = false) {
+		const config = { params }
+		if (forceRefresh) {
+			config.__noCache = true
+		}
+		return await api.get('/doctors', config)
 	},
 
 	async getById(id) {
@@ -10,7 +14,11 @@ const doctorService = {
 	},
 
 	async getByDepartment(departmentId) {
-		return await api.get('/doctors', { params: { departmentId } })
+		return await api.get('/doctors', { params: { departmentId, listOnly: true } })
+	},
+
+	async getAll() {
+		return await api.get('/doctors', { params: { page: 1, size: 1000 } })
 	},
 
 	async create(data) {

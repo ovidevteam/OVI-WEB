@@ -11,6 +11,10 @@ const feedbackService = {
 		return await api.get(`/feedbacks/${id}`)
 	},
 
+	async getByCode(code) {
+		return await api.get(`/feedbacks/by-code/${code}`)
+	},
+
 	async getMyFeedbacks() {
 		return await api.get('/feedbacks/my')
 	},
@@ -54,7 +58,8 @@ const feedbackService = {
 			return Promise.reject(new Error('Demo mode'))
 		}
 		const response = await api.get(`/feedbacks/${feedbackId}/history`)
-		return response.data
+		// API interceptor already unwraps response.data, so response is the array directly
+		return Array.isArray(response) ? response : (response.data || [])
 	}
 }
 

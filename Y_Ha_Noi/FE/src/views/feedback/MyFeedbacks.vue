@@ -49,8 +49,18 @@
 						<el-badge v-if="stats.pending > 0" :value="stats.pending" class="tab-badge" />
 					</template>
 				</el-tab-pane>
-				<el-tab-pane label="Đang xử lý" name="processing" />
-				<el-tab-pane label="Hoàn thành" name="completed" />
+				<el-tab-pane name="processing">
+					<template #label>
+						<span>Đang xử lý</span>
+						<el-badge v-if="stats.processing > 0" :value="stats.processing" class="tab-badge" type="warning" />
+					</template>
+				</el-tab-pane>
+				<el-tab-pane name="completed">
+					<template #label>
+						<span>Hoàn thành</span>
+						<el-badge v-if="stats.completed > 0" :value="stats.completed" class="tab-badge" type="success" />
+					</template>
+				</el-tab-pane>
 				<el-tab-pane name="overdue">
 					<template #label>
 						<span class="text-danger">Quá hạn</span>
@@ -108,7 +118,7 @@
 				</el-table-column>
 			</el-table>
 
-			<el-empty v-if="filteredFeedbacks.length === 0 && !loading" description="Không có phản ánh nào" />
+			<el-empty v-if="(!filteredFeedbacks || filteredFeedbacks.length === 0) && !loading" description="Không có phản ánh nào" />
 		</div>
 
 		<!-- Dialog Xử lý Phản ánh -->
@@ -186,7 +196,7 @@
 								placeholder="Ghi chú thêm (nếu có)..."
 							/>
 						</el-form-item>
-						<el-form-item label="File đính kèm">
+						<el-form-item label="File đính kèm" v-if="currentFeedback?.status !== 'COMPLETED'">
 							<el-upload
 								v-model:file-list="processForm.attachments"
 								class="upload-area"
@@ -199,6 +209,7 @@
 								accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
 								multiple
 								drag
+								v-if="Array.isArray(processForm.attachments)"
 							>
 								<div class="upload-dragger">
 									<el-icon class="upload-icon"><Upload /></el-icon>
@@ -222,11 +233,11 @@
 						<el-icon><List /></el-icon>
 						Lịch sử xử lý
 					</h4>
-					<el-timeline v-if="processHistory.length > 0">
+					<el-timeline v-if="processHistory && processHistory.length > 0">
 						<el-timeline-item
 							v-for="(item, index) in processHistory"
 							:key="index"
-							:timestamp="item.timestamp"
+							:timestamp="formatDateTime(item.timestamp)"
 							:type="getTimelineType(item.status)"
 							:hollow="index !== 0"
 							placement="top"
@@ -238,13 +249,21 @@
 										{{ getStatusLabel(item.status) }}
 									</el-tag>
 								</div>
-								<p class="timeline-text">{{ item.content }}</p>
-								<div v-if="item.attachments?.length > 0" class="timeline-attachments">
+								<p v-if="item.content" class="timeline-text">{{ item.content }}</p>
+								<p v-if="item.note" class="timeline-note">
+									<el-text type="info" size="small">
+										<el-icon><Document /></el-icon>
+										Ghi chú: {{ item.note }}
+									</el-text>
+								</p>
+								<div v-if="item.attachments && item.attachments.length > 0" class="timeline-attachments">
 									<el-link
 										v-for="file in item.attachments"
-										:key="file.name"
+										:key="file.id || file.name"
 										type="primary"
 										:icon="Paperclip"
+										:href="file.url"
+										target="_blank"
 									>
 										{{ file.name }}
 									</el-link>
@@ -281,8 +300,9 @@ import {
 	Warning, Loading, CircleCheck, Clock, Document, Edit,
 	List, Upload, Paperclip
 } from '@element-plus/icons-vue'
-import { formatDate, truncate, getLevelLabel, getLevelType } from '@/utils/helpers'
+import { formatDate, formatDateTime, truncate, getLevelLabel, getLevelType } from '@/utils/helpers'
 import feedbackService from '@/services/feedbackService'
+import uploadService from '@/services/uploadService'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -307,7 +327,22 @@ const processForm = reactive({
 
 const processRules = {
 	processContent: [
-		{ required: true, message: 'Vui lòng nhập nội dung xử lý', trigger: 'blur' }
+		{ 
+			validator: (rule, value, callback) => {
+				// Nội dung xử lý là bắt buộc trừ khi chọn "Hoàn thành"
+				if (!value || value.trim() === '') {
+					if (processForm.newStatus === 'COMPLETED') {
+						// Cho phép rỗng khi chọn "Hoàn thành"
+						callback()
+					} else {
+						callback(new Error('Vui lòng nhập nội dung xử lý'))
+					}
+				} else {
+					callback()
+				}
+			},
+			trigger: 'blur'
+		}
 	],
 	newStatus: [
 		{ required: true, message: 'Vui lòng chọn trạng thái', trigger: 'change' }
@@ -322,6 +357,9 @@ const stats = reactive({
 })
 
 const filteredFeedbacks = computed(() => {
+	if (!feedbacks.value || !Array.isArray(feedbacks.value)) {
+		return []
+	}
 	switch (activeTab.value) {
 		case 'pending':
 			return feedbacks.value.filter(f => f.status === 'NEW')
@@ -415,11 +453,28 @@ const handleRowClick = (row) => {
 // Dialog functions
 const openProcessDialog = async (feedback) => {
 	currentFeedback.value = { ...feedback }
+	// Reset process history and form before fetching
+	processHistory.value = []
+	processForm.attachments = processForm.attachments || []
 	processDialogVisible.value = true
 
 	// Fetch process history
 	try {
-		processHistory.value = await feedbackService.getProcessHistory(feedback.id)
+		const history = await feedbackService.getProcessHistory(feedback.id)
+		// Map backend format to frontend format
+		processHistory.value = (history || []).map(item => ({
+			id: item.id,
+			timestamp: item.createdAt,
+			handlerName: item.createdByName || 'Hệ thống',
+			status: item.status,
+			content: item.content || '', // Use content from backend (don't fallback to note)
+			note: item.note || '', // Separate note field
+			attachments: (item.images || []).map(img => ({
+				id: img.id,
+				name: img.filename,
+				url: img.url
+			}))
+		}))
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Mock history data - only in demo mode
@@ -513,11 +568,78 @@ const submitProcess = async () => {
 
 			submitting.value = true
 			try {
+				// Upload images first if any
+				let imageIds = []
+				if (processForm.attachments && processForm.attachments.length > 0) {
+					// Filter out files that are already uploaded (have id or url)
+					const filesToUpload = processForm.attachments.filter(file => {
+						return file.raw || (file instanceof File)
+					})
+					
+					if (filesToUpload.length > 0) {
+						try {
+							const response = await uploadService.uploadProcessImages(
+								currentFeedback.value.id,
+								filesToUpload.map(f => f.raw || f)
+							)
+							
+							// Backend returns { images: [...] } 
+							// API interceptor unwraps response.data, so we get { images: [...] }
+							let uploadedImages = []
+							if (Array.isArray(response)) {
+								// Direct array response
+								uploadedImages = response
+							} else if (response?.images && Array.isArray(response.images)) {
+								// Wrapped in { images: [...] }
+								uploadedImages = response.images
+							} else if (response?.data?.images && Array.isArray(response.data.images)) {
+								// Nested in { data: { images: [...] } }
+								uploadedImages = response.data.images
+							} else {
+								console.warn('Unexpected upload response format:', response)
+								uploadedImages = []
+							}
+							
+							// Extract image IDs
+							imageIds = uploadedImages
+								.map(img => {
+									if (typeof img === 'object' && img !== null) {
+										return img.id || img.imageId
+									}
+									return null
+								})
+								.filter(id => id != null)
+							
+							if (import.meta.env.DEV) {
+								console.log('Uploaded images:', uploadedImages, 'Image IDs:', imageIds)
+							}
+						} catch (uploadError) {
+							console.error('Error uploading images:', uploadError)
+							ElMessage.warning('Lưu xử lý thành công nhưng có lỗi khi upload hình ảnh')
+							imageIds = [] // Reset to empty array on error
+						}
+					}
+					
+					// Also include already uploaded images (those with id)
+					const existingImageIds = processForm.attachments
+						.filter(file => file.id && !file.raw && !(file instanceof File))
+						.map(file => file.id)
+					imageIds = [...imageIds, ...existingImageIds]
+				}
+				
+				// Submit processing with imageIds
+				// Ensure content is not empty - use note or default message if content is empty
+				let content = processForm.processContent?.trim() || ''
+				if (!content && processForm.newStatus === 'COMPLETED') {
+					// If completing without content, use note or default message
+					content = processForm.note?.trim() || 'Hoàn thành xử lý phản ánh'
+				}
+				
 				await feedbackService.updateProcessing(currentFeedback.value.id, {
-					content: processForm.processContent,
+					content: content,
 					status: processForm.newStatus,
-					note: processForm.note,
-					attachments: processForm.attachments
+					note: processForm.note?.trim() || '',
+					imageIds: imageIds
 				})
 
 				// Update local data
@@ -536,6 +658,9 @@ const submitProcess = async () => {
 				
 				// Refresh data to get latest from server
 				await fetchData()
+				
+				// Refresh sidebar stats to update badge counts
+				window.dispatchEvent(new CustomEvent('refresh-feedback-stats'))
 			} catch (error) {
 				console.error('Error updating processing:', error)
 				// In demo mode or if API fails, update locally
@@ -776,8 +901,16 @@ onMounted(() => {
 }
 
 .timeline-text {
+	margin: 8px 0;
+	color: var(--text-primary);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.timeline-note {
+	margin: 8px 0 0 0;
 	color: var(--text-secondary);
-	margin: 0;
+	font-size: 13px;
 	line-height: 1.5;
 }
 

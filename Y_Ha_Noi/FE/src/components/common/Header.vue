@@ -60,6 +60,8 @@
 							<el-icon>
 								<ChatDotRound v-if="item.type === 'feedback'" />
 								<UserFilled v-else-if="item.type === 'assigned'" />
+								<CircleCheckFilled v-else-if="item.type === 'completed'" />
+								<Star v-else-if="item.type === 'rating'" />
 								<CircleCheckFilled v-else />
 							</el-icon>
 						</div>
@@ -152,13 +154,14 @@ import { computed, ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
-import { getRoleLabel } from '@/utils/helpers'
+import { getRoleLabel, getRelativeTime } from '@/utils/helpers'
 import api from '@/services/api'
 import authService from '@/services/authService'
+import feedbackService from '@/services/feedbackService'
 import { mockNotifications } from '@/mock/db'
 import {
 	HomeFilled, Bell, BellFilled, User, Lock, SwitchButton, ArrowDown,
-	ChatDotRound, UserFilled, CircleCheckFilled
+	ChatDotRound, UserFilled, CircleCheckFilled, Star
 } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { handleApiError } from '@/utils/errorHandler'
@@ -181,12 +184,25 @@ const fetchNotifications = async () => {
 	}
 
 	try {
-		// Call real API - assuming endpoint exists: GET /notifications
-		const response = await api.get('/notifications')
-		notifications.value = response.data || []
+		// Call real API - api interceptor already unwraps response.data
+		const rawNotifications = await api.get('/notifications')
+		// Ensure it's an array
+		const notificationsArray = Array.isArray(rawNotifications) ? rawNotifications : (rawNotifications?.data || [])
+		// Map backend data to frontend format
+		notifications.value = notificationsArray.map(notif => ({
+			...notif,
+			// Convert enum type to lowercase for frontend (FEEDBACK -> feedback, ASSIGNED -> assigned)
+			type: notif.type?.toLowerCase() || notif.type,
+			// Add time property from createdAt
+			time: getRelativeTime(notif.createdAt)
+		}))
 	} catch (error) {
 		// Don't set to mock data if DEMO_MODE is false
 		notifications.value = []
+		// Only show error if it's not 403 (might be permission issue)
+		if (error?.response?.status !== 403) {
+			handleApiError(error, 'Fetch Notifications')
+		}
 	}
 }
 
@@ -218,10 +234,43 @@ const handleNotificationClick = async (item) => {
 	}
 	item.read = true
 	
-	if (item.type === 'feedback' || item.type === 'assigned') {
-		// Navigate to feedback detail if feedbackId is available
-		const feedbackId = item.feedbackId || item.id
-		router.push(`/feedback/${feedbackId}`)
+	// Get feedback ID from notification
+	let feedbackId = item.feedbackId
+	
+	// If no feedbackId, try to extract from message or find by code
+	if (!feedbackId) {
+		const codeMatch = item.message?.match(/PA-\d{8}-\d{3}/)
+		if (codeMatch) {
+			try {
+				const feedback = await feedbackService.getByCode(codeMatch[0])
+				if (feedback && feedback.id) {
+					feedbackId = feedback.id
+				}
+			} catch (error) {
+				ElMessage.warning(`Không tìm thấy phản ánh với mã: ${codeMatch[0]}`)
+				return
+			}
+		}
+	}
+	
+	if (!feedbackId) {
+		ElMessage.warning('Không thể xác định phản ánh từ thông báo.')
+		return
+	}
+	
+	// Navigate with query param to auto-open popup
+	if (item.type === 'rating') {
+		// For rating notifications, navigate to ratings page with feedbackId query param
+		router.push({
+			path: '/feedback/ratings',
+			query: { feedbackId: feedbackId.toString() }
+		})
+	} else {
+		// For feedback/assigned/completed notifications, navigate to feedback list page with feedbackId query param
+		router.push({
+			path: '/feedback',
+			query: { feedbackId: feedbackId.toString() }
+		})
 	}
 }
 

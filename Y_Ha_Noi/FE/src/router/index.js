@@ -42,12 +42,12 @@ const routes = [
 				path: '',
 				redirect: '/dashboard'
 			},
-			{
-				path: 'dashboard',
-				name: 'Dashboard',
-				component: Dashboard,
-				meta: { title: 'Dashboard', icon: 'Odometer' }
-			},
+		{
+			path: 'dashboard',
+			name: 'Dashboard',
+			component: Dashboard,
+			meta: { title: 'Dashboard', icon: 'Odometer', roles: ['ADMIN', 'LEADER'] }
+		},
 			// Feedback routes
 			{
 				path: 'feedback',
@@ -160,7 +160,14 @@ router.beforeEach(async (to, from, next) => {
 
 	// Check role permissions
 	if (allowedRoles && !allowedRoles.includes(authStore.user?.role)) {
-		next('/dashboard')
+		// Redirect to appropriate page based on user role
+		if (authStore.isHandler) {
+			next('/my-feedbacks')
+		} else if (authStore.isReceiver) {
+			next('/feedback')
+		} else {
+			next('/dashboard')
+		}
 		return
 	}
 

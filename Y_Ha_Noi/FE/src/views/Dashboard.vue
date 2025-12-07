@@ -81,66 +81,86 @@
 				</el-button>
 			</div>
 
-			<el-table :data="recentFeedbacks" stripe style="width: 100%" row-key="id">
-				<el-table-column prop="code" label="Số PA" width="145" />
-				<el-table-column prop="receivedDate" label="Ngày" width="105">
+			<el-table 
+				:data="recentFeedbacks" 
+				stripe 
+				style="width: 100%" 
+				row-key="id"
+				@row-click="handleRowClick"
+				row-class-name="clickable-row"
+				aria-label="Danh sách phản ánh mới nhất"
+				:default-sort="{ prop: 'receivedDate', order: 'descending' }"
+			>
+				<el-table-column prop="code" label="Số PA" width="160" />
+				<el-table-column prop="receivedDate" label="Ngày nhận" width="120">
 					<template #default="{ row }">
 						{{ formatDate(row.receivedDate) }}
 					</template>
 				</el-table-column>
-				<el-table-column prop="content" label="Nội dung" min-width="220">
+				<el-table-column prop="channel" label="Kênh" width="100">
+					<template #default="{ row }">
+						<el-tag size="small" effect="plain">
+							{{ getChannelLabel(row.channel) }}
+						</el-tag>
+					</template>
+				</el-table-column>
+				<el-table-column prop="content" label="Nội dung" min-width="250">
 					<template #default="{ row }">
 						<el-tooltip :content="row.content" placement="top" :show-after="500">
 							<span class="content-cell">{{ row.content }}</span>
 						</el-tooltip>
 					</template>
 				</el-table-column>
-				<el-table-column prop="departmentName" label="Phòng" min-width="100" />
-				<el-table-column prop="level" label="Mức độ" width="95" align="center">
+				<el-table-column prop="departmentName" label="Phòng ban" min-width="120" />
+				<el-table-column prop="doctorName" label="Bác sĩ" min-width="150" />
+				<el-table-column prop="level" label="Mức độ" width="100" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getLevelType(row.level)" size="small">
 							{{ getLevelLabel(row.level) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column prop="status" label="Trạng thái" width="105" align="center">
+				<el-table-column prop="status" label="Trạng thái" width="120" align="center">
 					<template #default="{ row }">
 						<el-tag :type="getStatusType(row.status)" size="small">
 							{{ getStatusLabel(row.status) }}
 						</el-tag>
 					</template>
 				</el-table-column>
-				<el-table-column label="" width="50" align="center">
-					<template #default="{ row }">
-						<el-button
-							type="primary"
-							text
-							size="small"
-							@click="viewDetail(row.id)"
-							@mousedown.prevent
-							@selectstart.prevent
-						>
-							<el-icon><View /></el-icon>
-						</el-button>
-					</template>
-				</el-table-column>
+				<el-table-column prop="handlerName" label="Người xử lý" min-width="140" />
 			</el-table>
 		</div>
+
+		<!-- Feedback Detail Dialog -->
+		<el-dialog
+			v-model="detailDialogVisible"
+			title="Chi tiết Phản ánh"
+			width="1200px"
+			:close-on-click-modal="false"
+			destroy-on-close
+			align-center
+			class="feedback-detail-dialog"
+		>
+			<FeedbackDetail v-if="selectedFeedbackId" :feedback-id="selectedFeedbackId" :is-dialog="true" />
+		</el-dialog>
 	</div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import {
 	ChatDotRound, Loading, CircleCheck, Warning,
-	ArrowRight, View
+	ArrowRight
 } from '@element-plus/icons-vue'
-import { formatDate, truncate, getLevelLabel, getLevelType, getStatusLabel, getStatusType } from '@/utils/helpers'
+import FeedbackDetail from '@/views/feedback/FeedbackDetail.vue'
+import { formatDate, truncate, getChannelLabel, getLevelLabel, getLevelType, getStatusLabel, getStatusType } from '@/utils/helpers'
 import { handleApiError } from '@/utils/errorHandler'
 import reportService from '@/services/reportService'
 import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'
+import doctorService from '@/services/doctorService'
 import LineChart from '@/components/charts/LineChart.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import {
@@ -153,6 +173,8 @@ import {
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
 
 const stats = reactive({
 	total: 0,
@@ -197,13 +219,22 @@ const departmentData = ref({
 const recentFeedbacks = ref([])
 const loading = ref(false)
 const departments = ref([]) // Store departments for mapping
+const doctors = ref([]) // Store doctors for mapping
+const detailDialogVisible = ref(false)
+const selectedFeedbackId = ref(null)
 
 const goToList = () => {
 	router.push('/feedback')
 }
 
+const handleRowClick = (row) => {
+	selectedFeedbackId.value = row.id
+	detailDialogVisible.value = true
+}
+
 const viewDetail = (id) => {
-	router.push(`/feedback/${id}`)
+	selectedFeedbackId.value = id
+	detailDialogVisible.value = true
 }
 
 /**
@@ -218,6 +249,34 @@ const loadDepartments = async () => {
 }
 
 /**
+ * Load doctors list for mapping doctorId to doctorName
+ */
+const loadDoctors = async () => {
+	try {
+		const response = await doctorService.getAll()
+		// Handle both array and paginated response
+		if (Array.isArray(response)) {
+			doctors.value = response
+		} else if (response && response.data) {
+			doctors.value = response.data
+		} else {
+			doctors.value = []
+		}
+	} catch (error) {
+		doctors.value = []
+	}
+}
+
+/**
+ * Get doctor name by ID
+ */
+const getDoctorName = (doctorId) => {
+	if (!doctorId) return null
+	const doctor = doctors.value.find(d => d.id === doctorId)
+	return doctor ? doctor.fullName || doctor.name : null
+}
+
+/**
  * Get department name by ID
  */
 const getDepartmentName = (departmentId) => {
@@ -227,15 +286,33 @@ const getDepartmentName = (departmentId) => {
 }
 
 /**
- * Map departmentId to departmentName for feedbacks
+ * Map departmentId to departmentName and doctorId to doctorName for feedbacks
  */
 const mapFeedbackDepartments = (feedbacks) => {
 	if (!feedbacks || !Array.isArray(feedbacks)) return []
 	return feedbacks.map(feedback => {
-		if (feedback.departmentId && !feedback.departmentName && departments.value.length > 0) {
-			feedback.departmentName = getDepartmentName(feedback.departmentId)
+		// Create a new object to avoid mutation
+		const mapped = { ...feedback }
+		
+		// Map department - check if departmentName is missing or empty
+		if (mapped.departmentId && (!mapped.departmentName || mapped.departmentName.trim() === '') && departments.value.length > 0) {
+			mapped.departmentName = getDepartmentName(mapped.departmentId)
 		}
-		return feedback
+		// If still no departmentName, try to get from department object if exists
+		if (!mapped.departmentName && mapped.department) {
+			mapped.departmentName = mapped.department.name || mapped.department.departmentName
+		}
+		
+		// Map doctor - check if doctorName is missing or empty
+		if (mapped.doctorId && (!mapped.doctorName || mapped.doctorName.trim() === '') && doctors.value.length > 0) {
+			mapped.doctorName = getDoctorName(mapped.doctorId)
+		}
+		// If still no doctorName, try to get from doctor object if exists
+		if (!mapped.doctorName && mapped.doctor) {
+			mapped.doctorName = mapped.doctor.fullName || mapped.doctor.name
+		}
+		
+		return mapped
 	})
 }
 
@@ -260,66 +337,110 @@ const mapDepartmentStats = (stats) => {
 const loadDashboardData = async () => {
 	loading.value = true
 	try {
-		// Load departments first for mapping
-		await loadDepartments()
+		// Load departments and doctors first for mapping
+		await Promise.all([loadDepartments(), loadDoctors()])
 		
 		if (DEMO_MODE) {
 			// Demo data - use mock data from db.js
 			Object.assign(stats, mockDashboardStats)
-			monthlyData.value.datasets[0].data = mockMonthlyStats
-			departmentData.value.labels = mockDepartmentStats.map(d => d.departmentName)
-			departmentData.value.datasets[0].data = mockDepartmentStats.map(d => d.count)
+			// Update monthly chart data
+			monthlyData.value = {
+				labels: monthlyData.value.labels,
+				datasets: [{
+					...monthlyData.value.datasets[0],
+					data: mockMonthlyStats
+				}]
+			}
+			// Update department chart data
+			departmentData.value = {
+				labels: mockDepartmentStats.map(d => d.departmentName || d.name || ''),
+				datasets: [{
+					...departmentData.value.datasets[0],
+					data: mockDepartmentStats.map(d => d.count || 0)
+				}]
+			}
 			recentFeedbacks.value = mockFeedbacks.slice(0, 5)
 			return
 		}
 		// Load dashboard stats - API returns { stats, monthlyStats, departmentStats, recentFeedbacks }
-		const dashboardData = await reportService.getDashboard()
-		if (dashboardData) {
-			// Extract stats from response
-			if (dashboardData.stats) {
-				stats.total = dashboardData.stats.total || 0
-				stats.processing = dashboardData.stats.processing || 0
-				stats.completed = dashboardData.stats.completed || 0
-				stats.overdue = dashboardData.stats.overdue || 0
-			} else {
-				// Fallback: if stats is at root level
-				stats.total = dashboardData.total || 0
-				stats.processing = dashboardData.processing || 0
-				stats.completed = dashboardData.completed || 0
-				stats.overdue = dashboardData.overdue || 0
-			}
+		try {
+			const dashboardData = await reportService.getDashboard()
+			if (dashboardData) {
+				// Extract stats from response
+				if (dashboardData.stats) {
+					stats.total = dashboardData.stats.total || 0
+					stats.processing = dashboardData.stats.processing || 0
+					stats.completed = dashboardData.stats.completed || 0
+					stats.overdue = dashboardData.stats.overdue || 0
+				} else {
+					// Fallback: if stats is at root level
+					stats.total = dashboardData.total || 0
+					stats.processing = dashboardData.processing || 0
+					stats.completed = dashboardData.completed || 0
+					stats.overdue = dashboardData.overdue || 0
+				}
 
-			// Extract monthly stats from dashboard response
-			if (dashboardData.monthlyStats && Array.isArray(dashboardData.monthlyStats)) {
-				// Convert array of {month, count} to array of counts
-				const monthlyCounts = new Array(12).fill(0)
-				dashboardData.monthlyStats.forEach(item => {
-					if (item.month >= 1 && item.month <= 12) {
-						monthlyCounts[item.month - 1] = item.count || 0
+				// Extract monthly stats from dashboard response
+				if (dashboardData.monthlyStats && Array.isArray(dashboardData.monthlyStats) && dashboardData.monthlyStats.length > 0) {
+					// Convert array of {month, count} to array of counts
+					const monthlyCounts = new Array(12).fill(0)
+					dashboardData.monthlyStats.forEach(item => {
+						if (item.month >= 1 && item.month <= 12) {
+							monthlyCounts[item.month - 1] = item.count || 0
+						}
+					})
+					// Update chart data properly - create new object to trigger reactivity
+					monthlyData.value = {
+						labels: monthlyData.value.labels,
+						datasets: [{
+							...monthlyData.value.datasets[0],
+							data: monthlyCounts
+						}]
 					}
-				})
-				monthlyData.value.datasets[0].data = monthlyCounts
-			}
+				}
 
-			// Extract department stats from dashboard response
-			if (dashboardData.departmentStats && Array.isArray(dashboardData.departmentStats)) {
-				// Map departmentId to departmentName if needed
-				const mappedStats = mapDepartmentStats(dashboardData.departmentStats)
-				departmentData.value.labels = mappedStats.map(d => d.departmentName || d.name || '')
-				departmentData.value.datasets[0].data = mappedStats.map(d => d.count || d.total || 0)
-			}
+				// Extract department stats from dashboard response
+				if (dashboardData.departmentStats && Array.isArray(dashboardData.departmentStats) && dashboardData.departmentStats.length > 0) {
+					// Map departmentId to departmentName if needed
+					const mappedStats = mapDepartmentStats(dashboardData.departmentStats)
+					// Update chart data properly - create new object to trigger reactivity
+					departmentData.value = {
+						labels: mappedStats.map(d => d.departmentName || d.name || ''),
+						datasets: [{
+							...departmentData.value.datasets[0],
+							data: mappedStats.map(d => d.count || d.total || 0)
+						}]
+					}
+				}
 
-			// Extract recent feedbacks from dashboard response
-			if (dashboardData.recentFeedbacks && Array.isArray(dashboardData.recentFeedbacks)) {
-				recentFeedbacks.value = mapFeedbackDepartments(dashboardData.recentFeedbacks)
+				// Extract recent feedbacks from dashboard response
+				if (dashboardData.recentFeedbacks && Array.isArray(dashboardData.recentFeedbacks)) {
+					// Map feedbacks with department and doctor names
+					const mappedFeedbacks = mapFeedbackDepartments(dashboardData.recentFeedbacks)
+					recentFeedbacks.value = mappedFeedbacks
+				}
 			}
+		} catch (error) {
+			// If 403 Forbidden, user doesn't have permission - redirect or show message
+			if (error?.response?.status === 403) {
+				handleApiError(error, 'Dashboard')
+				// Redirect to appropriate page based on user role
+				if (authStore.isHandler) {
+					router.push('/my-feedbacks')
+				} else {
+					router.push('/feedback')
+				}
+				return
+			}
+			// Log error but continue with fallback APIs
+			console.error('Error loading dashboard data:', error)
 		}
 
 		// If monthly stats not loaded from dashboard, try separate API
-		if (monthlyData.value.datasets[0].data.every(v => v === 0)) {
+		if (!monthlyData.value.datasets[0].data || monthlyData.value.datasets[0].data.length === 0 || monthlyData.value.datasets[0].data.every(v => v === 0)) {
 			try {
 				const monthlyStats = await reportService.getMonthlyStats(selectedYear.value)
-				if (monthlyStats && Array.isArray(monthlyStats)) {
+				if (monthlyStats && Array.isArray(monthlyStats) && monthlyStats.length > 0) {
 					// Convert array of {month, count} to array of counts
 					const monthlyCounts = new Array(12).fill(0)
 					monthlyStats.forEach(item => {
@@ -327,25 +448,38 @@ const loadDashboardData = async () => {
 							monthlyCounts[item.month - 1] = item.count || 0
 						}
 					})
-					monthlyData.value.datasets[0].data = monthlyCounts
+					// Update chart data properly - create new object to trigger reactivity
+					monthlyData.value = {
+						labels: monthlyData.value.labels,
+						datasets: [{
+							...monthlyData.value.datasets[0],
+							data: monthlyCounts
+						}]
+					}
 				}
 			} catch (error) {
-				// Silently fail for fallback API calls
+				console.error('Error loading monthly stats:', error)
 			}
 		}
 
 		// If department stats not loaded from dashboard, try separate API
-		if (departmentData.value.labels.length === 0) {
+		if (!departmentData.value.labels || departmentData.value.labels.length === 0 || !departmentData.value.datasets[0].data || departmentData.value.datasets[0].data.length === 0 || departmentData.value.datasets[0].data.every(v => v === 0)) {
 			try {
 				const deptStats = await reportService.getByDepartment({ limit: 5 })
-				if (deptStats && Array.isArray(deptStats)) {
+				if (deptStats && Array.isArray(deptStats) && deptStats.length > 0) {
 					// Map departmentId to departmentName if needed
 					const mappedStats = mapDepartmentStats(deptStats)
-					departmentData.value.labels = mappedStats.map(d => d.departmentName || d.name || '')
-					departmentData.value.datasets[0].data = mappedStats.map(d => d.count || d.total || 0)
+					// Update chart data properly - create new object to trigger reactivity
+					departmentData.value = {
+						labels: mappedStats.map(d => d.departmentName || d.name || ''),
+						datasets: [{
+							...departmentData.value.datasets[0],
+							data: mappedStats.map(d => d.count || d.total || 0)
+						}]
+					}
 				}
 			} catch (error) {
-				// Silently fail for fallback API calls
+				console.error('Error loading department stats:', error)
 			}
 		}
 
@@ -359,8 +493,16 @@ const loadDashboardData = async () => {
 				} else if (Array.isArray(feedbacks)) {
 					feedbackList = feedbacks
 				}
-				// Map departmentId to departmentName
-				recentFeedbacks.value = mapFeedbackDepartments(feedbackList).slice(0, 5)
+				// Map departmentId to departmentName and doctorId to doctorName
+				// Ensure departments and doctors are loaded before mapping
+				if (departments.value.length === 0) {
+					await loadDepartments()
+				}
+				if (doctors.value.length === 0) {
+					await loadDoctors()
+				}
+				const mappedFeedbacks = mapFeedbackDepartments(feedbackList)
+				recentFeedbacks.value = mappedFeedbacks.slice(0, 5)
 			} catch (error) {
 				// Silently fail for fallback API calls
 			}
@@ -372,8 +514,53 @@ const loadDashboardData = async () => {
 	}
 }
 
+// Listen for notification events to open feedback dialog
+const handleOpenFeedbackDialog = (event) => {
+	const { feedbackId } = event.detail
+	if (feedbackId) {
+		// Always update selectedFeedbackId and open dialog
+		// This ensures that clicking different notifications will open different feedbacks
+		selectedFeedbackId.value = feedbackId
+		// Force dialog to open even if it's already open
+		detailDialogVisible.value = true
+	}
+}
+
+// Check query param and auto-open dialog
+const checkQueryParam = () => {
+	const feedbackId = route.query.feedbackId
+	if (feedbackId) {
+		// Convert to number if it's a string
+		const id = typeof feedbackId === 'string' ? parseInt(feedbackId, 10) : feedbackId
+		if (id && !isNaN(id)) {
+			selectedFeedbackId.value = id
+			detailDialogVisible.value = true
+			// Clear query param after opening dialog
+			router.replace({ query: {} })
+		}
+	}
+}
+
 onMounted(() => {
 	loadDashboardData()
+	
+	// Check query param for auto-opening dialog (from notification click)
+	checkQueryParam()
+	
+	// Listen for notification events (for same-page notifications)
+	window.addEventListener('open-feedback-dialog', handleOpenFeedbackDialog)
+})
+
+onBeforeUnmount(() => {
+	// Clean up event listener
+	window.removeEventListener('open-feedback-dialog', handleOpenFeedbackDialog)
+})
+
+// Watch route query changes
+watch(() => route.query.feedbackId, (newId) => {
+	if (newId) {
+		checkQueryParam()
+	}
 })
 
 // Watch year change
@@ -414,10 +601,36 @@ watch(selectedYear, () => {
 	word-break: break-word;
 }
 
+.clickable-row {
+	cursor: pointer;
+}
+
+.clickable-row:hover {
+	background-color: var(--el-table-row-hover-bg-color);
+}
+
 @media (max-width: 1200px) {
 	.charts-row {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Feedback Detail Dialog */
+:deep(.feedback-detail-dialog) {
+	max-width: 95vw;
+}
+
+:deep(.feedback-detail-dialog .el-dialog) {
+	margin: 5vh auto;
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+}
+
+:deep(.feedback-detail-dialog .el-dialog__body) {
+	flex: 1;
+	overflow-y: auto;
+	padding: 20px;
 }
 </style>
 

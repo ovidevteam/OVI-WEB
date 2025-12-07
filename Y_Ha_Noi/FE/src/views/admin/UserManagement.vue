@@ -10,7 +10,7 @@
 
 			<!-- Filters -->
 			<el-form :inline="true" class="filter-form">
-				<el-form-item>
+				<el-form-item label="Tìm kiếm">
 					<el-input
 						v-model="searchKeyword"
 						placeholder="Tìm theo tên, username..."
@@ -20,20 +20,39 @@
 						@input="handleSearch"
 					/>
 				</el-form-item>
-				<el-form-item>
-					<el-select v-model="filterRole" placeholder="Vai trò" clearable @change="handleSearch">
+				<el-form-item label="Vai trò">
+					<el-select 
+						v-model="filterRole" 
+						placeholder="Chọn vai trò" 
+						clearable 
+						style="width: 180px"
+						@change="handleSearch"
+					>
 						<el-option v-for="r in ROLES" :key="r.value" :label="r.label" :value="r.value" />
 					</el-select>
 				</el-form-item>
-				<el-form-item>
-					<el-select v-model="filterStatus" placeholder="Trạng thái" clearable @change="handleSearch">
+				<el-form-item label="Trạng thái">
+					<el-select 
+						v-model="filterStatus" 
+						placeholder="Chọn trạng thái" 
+						clearable 
+						style="width: 180px"
+						@change="handleSearch"
+					>
 						<el-option v-for="s in USER_STATUS" :key="s.value" :label="s.label" :value="s.value" />
 					</el-select>
 				</el-form-item>
 			</el-form>
 
 			<!-- Table -->
-			<el-table :data="users" v-loading="loading" stripe row-key="id">
+			<el-table 
+				:data="optimizedUsers" 
+				v-loading="loading" 
+				stripe 
+				row-key="id"
+				:default-sort="{ prop: 'username', order: 'ascending' }"
+				style="width: 100%"
+			>
 				<el-table-column prop="username" label="Username" width="140" />
 				<el-table-column prop="fullName" label="Họ tên" min-width="180" />
 				<el-table-column prop="email" label="Email" min-width="200" />
@@ -127,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, shallowRef } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { ROLES, USER_STATUS } from '@/utils/constants'
@@ -141,7 +160,8 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const loading = ref(false)
 const saveLoading = ref(false)
-const users = ref([])
+// Use shallowRef for better performance with large arrays
+const users = shallowRef([])
 const departments = ref([])
 const total = ref(0)
 const currentPage = ref(1)
@@ -151,6 +171,9 @@ const filterRole = ref('')
 const filterStatus = ref('')
 const dialogVisible = ref(false)
 const formRef = ref(null)
+
+// Computed property for optimized user list
+const optimizedUsers = computed(() => users.value)
 
 const form = reactive({
 	id: null,

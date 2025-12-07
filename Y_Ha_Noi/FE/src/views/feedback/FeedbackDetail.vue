@@ -4,7 +4,7 @@
 			<!-- Header -->
 			<div class="detail-header">
 				<div class="header-left">
-					<el-button @click="goBack">Quay lại</el-button>
+					<el-button v-if="!isDialog" @click="goBack">Quay lại</el-button>
 					<div class="header-info">
 						<h2 class="feedback-code">{{ feedback.code }}</h2>
 						<div class="header-meta">
@@ -68,7 +68,47 @@
 					<div class="content-card-header">
 						<h3 class="content-card-title">Lịch sử xử lý</h3>
 					</div>
-					<FeedbackTimeline :logs="feedback.logs" />
+					<div class="process-history-section">
+						<el-timeline v-if="processHistory && processHistory.length > 0">
+							<el-timeline-item
+								v-for="(item, index) in processHistory"
+								:key="index"
+								:timestamp="formatDateTime(item.timestamp)"
+								:type="getTimelineType(item.status)"
+								:hollow="index !== 0"
+								placement="top"
+							>
+								<div class="timeline-content">
+									<div class="timeline-header">
+										<span class="handler-name">{{ item.handlerName }}</span>
+										<el-tag :type="getTimelineType(item.status)" size="small">
+											{{ getStatusLabel(item.status) }}
+										</el-tag>
+									</div>
+									<p v-if="item.content" class="timeline-text">{{ item.content }}</p>
+									<p v-if="item.note" class="timeline-note">
+										<el-text type="info" size="small">
+											<el-icon><Document /></el-icon>
+											Ghi chú: {{ item.note }}
+										</el-text>
+									</p>
+									<div v-if="item.attachments && item.attachments.length > 0" class="timeline-attachments">
+										<el-link
+											v-for="file in item.attachments"
+											:key="file.id || file.name"
+											type="primary"
+											:icon="Paperclip"
+											:href="file.url"
+											target="_blank"
+										>
+											{{ file.name }}
+										</el-link>
+									</div>
+								</div>
+							</el-timeline-item>
+						</el-timeline>
+						<el-empty v-else description="Chưa có lịch sử xử lý" :image-size="80" />
+					</div>
 				</div>
 
 				<!-- Process Result -->
@@ -100,31 +140,67 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-// Icons removed - using text-only buttons
+import { Document, Paperclip } from '@element-plus/icons-vue'
 import {
 	formatDateTime, getChannelLabel, getLevelLabel, getLevelType,
 	getStatusLabel, getStatusType
 } from '@/utils/helpers'
 import feedbackService from '@/services/feedbackService'
 import ImageGallery from '@/components/upload/ImageGallery.vue'
-import FeedbackTimeline from '@/components/feedback/FeedbackTimeline.vue'
 import { handleApiError } from '@/utils/errorHandler'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
+const props = defineProps({
+	feedbackId: {
+		type: [String, Number],
+		default: null
+	},
+	isDialog: {
+		type: Boolean,
+		default: false
+	}
+})
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
 const feedback = ref(null)
+const processHistory = ref([])
 
 const fetchFeedback = async () => {
 	loading.value = true
 	try {
-		feedback.value = await feedbackService.getById(route.params.id)
+		const id = props.feedbackId || route.params.id
+		feedback.value = await feedbackService.getById(id)
+		
+		// Fetch process history separately
+		if (id) {
+			try {
+				const history = await feedbackService.getProcessHistory(id)
+				// Map backend format to frontend format (same as MyFeedbacks.vue)
+				processHistory.value = (history || []).map(item => ({
+					id: item.id,
+					timestamp: item.createdAt,
+					handlerName: item.createdByName || 'Hệ thống',
+					status: item.status,
+					content: item.content || '',
+					note: item.note || '',
+					attachments: (item.images || []).map(img => ({
+						id: img.id,
+						name: img.filename,
+						url: img.url
+					}))
+				}))
+			} catch (historyError) {
+				console.error('Error fetching process history:', historyError)
+				processHistory.value = []
+			}
+		}
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -184,8 +260,27 @@ const goBack = () => {
 }
 
 onMounted(() => {
-	fetchFeedback()
+	if (props.feedbackId || route.params.id) {
+		fetchFeedback()
+	}
 })
+
+// Watch for feedbackId prop changes (for dialog)
+watch(() => props.feedbackId, (newId) => {
+	if (newId) {
+		fetchFeedback()
+	}
+})
+
+const getTimelineType = (status) => {
+	switch (status) {
+		case 'COMPLETED': return 'success'
+		case 'PROCESSING': return 'warning'
+		case 'NEW': return 'primary'
+		case 'ASSIGNED': return 'info'
+		default: return 'info'
+	}
+}
 </script>
 
 <style scoped>
@@ -235,6 +330,51 @@ onMounted(() => {
 	margin: 0 0 12px;
 	font-size: 0.875rem;
 	color: var(--text-secondary);
+}
+
+.process-history-section {
+	margin-top: 0;
+}
+
+.timeline-content {
+	background: white;
+	padding: 12px 16px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border-color);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.timeline-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.handler-name {
+	font-weight: 600;
+	color: var(--secondary-color);
+}
+
+.timeline-text {
+	margin: 8px 0;
+	color: var(--text-primary);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+.timeline-note {
+	margin: 8px 0 0 0;
+	color: var(--text-secondary);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.timeline-attachments {
+	margin-top: 8px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
 }
 
 @media (max-width: 768px) {

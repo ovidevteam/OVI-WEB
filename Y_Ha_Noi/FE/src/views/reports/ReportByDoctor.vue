@@ -25,15 +25,58 @@
 				</div>
 			</div>
 
+			<!-- Summary Stats với icon và gradient -->
+			<div class="stats-grid">
+				<div class="stat-card stat-total">
+					<div class="stat-icon">
+						<el-icon><Document /></el-icon>
+					</div>
+					<div class="stat-info">
+						<span class="stat-value">{{ summary.total }}</span>
+						<span class="stat-label">Tổng phản ánh</span>
+					</div>
+				</div>
+				<div class="stat-card stat-completed">
+					<div class="stat-icon">
+						<el-icon><CircleCheck /></el-icon>
+					</div>
+					<div class="stat-info">
+						<span class="stat-value">{{ summary.completed }}</span>
+						<span class="stat-label">Hoàn thành</span>
+					</div>
+				</div>
+				<div class="stat-card stat-time">
+					<div class="stat-icon">
+						<el-icon><Timer /></el-icon>
+					</div>
+					<div class="stat-info">
+						<span class="stat-value">{{ summary.avgTime }}<small> ngày</small></span>
+						<span class="stat-label">Thời gian TB</span>
+					</div>
+				</div>
+				<div class="stat-card stat-rating">
+					<div class="stat-icon">
+						<el-icon><Star /></el-icon>
+					</div>
+					<div class="stat-info">
+						<span class="stat-value">{{ summary.avgRating }}</span>
+						<span class="stat-label">Điểm đánh giá TB</span>
+					</div>
+				</div>
+			</div>
+
 			<!-- Table -->
-			<el-table
-				:data="reportData"
-				v-loading="loading"
-				stripe
-				row-key="id"
-				row-class-name="clickable-row"
-				@row-click="handleRowClick"
-			>
+			<div class="table-wrapper">
+				<el-table
+					:data="reportData"
+					v-loading="loading"
+					stripe
+					row-key="id"
+					show-summary
+					:summary-method="getSummaries"
+					row-class-name="clickable-row"
+					@row-click="handleRowClick"
+				>
 				<el-table-column type="index" label="#" width="50" />
 				<el-table-column prop="doctorName" label="Bác sĩ" min-width="200">
 					<template #default="{ row }">
@@ -84,6 +127,7 @@
 					</template>
 				</el-table-column>
 			</el-table>
+			</div>
 
 			<!-- Pagination -->
 			<div class="pagination-wrapper">
@@ -96,14 +140,15 @@
 			</div>
 		</div>
 
-		<!-- Top 10 Chart -->
+		<!-- Charts -->
 		<div class="content-card">
 			<div class="content-card-header">
 				<h3 class="content-card-title">
 					<el-icon><TrendCharts /></el-icon>
-					Top 10 Bác sĩ xử lý nhanh nhất
+					Biểu đồ so sánh
 				</h3>
 			</div>
+			<!-- Chart -->
 			<div class="chart-container">
 				<BarChart :data="chartData" />
 			</div>
@@ -113,56 +158,82 @@
 		<el-dialog
 			v-model="detailDialogVisible"
 			:title="'Chi tiết: ' + selectedDoctor?.doctorName"
-			width="900px"
+			width="1400px"
 			class="detail-dialog"
+			:close-on-click-modal="false"
 		>
 			<div class="detail-content" v-if="selectedDoctor">
-				<!-- Doctor Profile -->
-				<div class="doctor-profile">
-					<el-avatar :size="80" class="profile-avatar">
-						{{ selectedDoctor.doctorName?.charAt(0) }}
-					</el-avatar>
-					<div class="profile-info">
-						<h3 class="profile-name">{{ selectedDoctor.doctorName }}</h3>
-						<p class="profile-specialty">
-							<el-tag>{{ selectedDoctor.specialty }}</el-tag>
-							<span class="profile-dept">{{ selectedDoctor.departmentName }}</span>
-						</p>
-						<div class="profile-rating">
-							<el-rate v-model="selectedDoctor.rating" disabled show-score text-color="#ff9900" />
+				<!-- Doctor Summary -->
+				<div class="detail-summary">
+					<div class="summary-card summary-total">
+						<div class="summary-icon">
+							<el-icon><Document /></el-icon>
+						</div>
+						<div class="summary-info">
+							<span class="summary-value">{{ detailStats.total }}</span>
+							<span class="summary-label">Tổng phản ánh</span>
 						</div>
 					</div>
-				</div>
-
-				<!-- Stats Cards -->
-				<div class="detail-stats">
-					<div class="detail-stat-card">
-						<span class="stat-number">{{ selectedDoctor.total }}</span>
-						<span class="stat-text">Tổng phản ánh</span>
+					<div class="summary-card summary-completed">
+						<div class="summary-icon">
+							<el-icon><CircleCheck /></el-icon>
+						</div>
+						<div class="summary-info">
+							<span class="summary-value">{{ detailStats.completed }}</span>
+							<span class="summary-label">Hoàn thành</span>
+						</div>
 					</div>
-					<div class="detail-stat-card success">
-						<span class="stat-number">{{ selectedDoctor.completed }}</span>
-						<span class="stat-text">Đã hoàn thành</span>
+					<div class="summary-card summary-processing">
+						<div class="summary-icon">
+							<el-icon><Loading /></el-icon>
+						</div>
+						<div class="summary-info">
+							<span class="summary-value">{{ detailStats.processing }}</span>
+							<span class="summary-label">Đang xử lý</span>
+						</div>
 					</div>
-					<div class="detail-stat-card warning">
-						<span class="stat-number">{{ selectedDoctor.avgDays }}</span>
-						<span class="stat-text">Thời gian TB (ngày)</span>
+					<div class="summary-card summary-pending">
+						<div class="summary-icon">
+							<el-icon><Warning /></el-icon>
+						</div>
+						<div class="summary-info">
+							<span class="summary-value">{{ detailStats.pending }}</span>
+							<span class="summary-label">Chưa xử lý</span>
+						</div>
 					</div>
-					<div class="detail-stat-card info">
-						<span class="stat-number">{{ Math.round(selectedDoctor.completed / selectedDoctor.total * 100) }}%</span>
-						<span class="stat-text">Tỷ lệ hoàn thành</span>
+					<div class="summary-card summary-rate">
+						<div class="summary-icon">
+							<el-icon><TrendCharts /></el-icon>
+						</div>
+						<div class="summary-info">
+							<span class="summary-value">{{ detailStats.completionRate }}%</span>
+							<span class="summary-label">Tỷ lệ HT</span>
+						</div>
 					</div>
 				</div>
 
 				<!-- Feedback List -->
 				<div class="detail-section">
 					<h4 class="section-title">Danh sách phản ánh đã xử lý</h4>
-					<el-table :data="doctorFeedbacks" max-height="350" v-loading="detailLoading" row-key="id">
-						<el-table-column prop="code" label="Mã PA" width="120" />
-						<el-table-column prop="content" label="Nội dung" min-width="200">
+					<el-table 
+						:data="doctorFeedbacks" 
+						max-height="500" 
+						v-loading="detailLoading" 
+						row-key="id"
+						:default-sort="{ prop: 'code', order: 'descending' }"
+						stripe
+						@row-click="handleFeedbackRowClick"
+					>
+						<el-table-column prop="code" label="Mã PA" width="160" sortable />
+						<el-table-column prop="receivedDate" label="Ngày nhận" width="120" align="center">
 							<template #default="{ row }">
-								<el-tooltip :content="row.content" placement="top" :disabled="row.content?.length < 50">
-									<span class="content-preview">{{ row.content?.substring(0, 50) }}{{ row.content?.length > 50 ? '...' : '' }}</span>
+								{{ row.receivedDate || row.createdDate }}
+							</template>
+						</el-table-column>
+						<el-table-column prop="content" label="Nội dung" min-width="250">
+							<template #default="{ row }">
+								<el-tooltip :content="row.content" placement="top" :disabled="!row.content || row.content.length < 60">
+									<span class="content-preview">{{ row.content?.substring(0, 60) }}{{ row.content?.length > 60 ? '...' : '' }}</span>
 								</el-tooltip>
 							</template>
 						</el-table-column>
@@ -175,9 +246,10 @@
 						</el-table-column>
 						<el-table-column prop="processingTime" label="Thời gian XL" width="120" align="center">
 							<template #default="{ row }">
-								<el-tag :type="row.processingTime <= 2 ? 'success' : 'warning'" size="small">
+								<el-tag :type="row.processingTime <= 2 ? 'success' : 'warning'" size="small" v-if="row.processingTime">
 									{{ row.processingTime }} ngày
 								</el-tag>
+								<span v-else class="text-muted">-</span>
 							</template>
 						</el-table-column>
 						<el-table-column prop="completedDate" label="Ngày HT" width="110" align="center" />
@@ -192,19 +264,38 @@
 				</el-button>
 			</template>
 		</el-dialog>
+
+		<!-- Feedback Detail Dialog -->
+		<el-dialog
+			v-model="feedbackDetailVisible"
+			:title="'Chi tiết: ' + (selectedFeedback?.code || '')"
+			width="1000px"
+			class="feedback-detail-dialog"
+		>
+			<div v-if="selectedFeedback" class="feedback-detail-content">
+				<!-- Process History Section -->
+				<div class="process-history-section" v-loading="historyLoading">
+					<h4 class="section-title">Lịch sử xử lý</h4>
+					<FeedbackTimeline :logs="processHistory" />
+				</div>
+			</div>
+		</el-dialog>
 	</div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Download, User, Timer, TrendCharts, ArrowRight } from '@element-plus/icons-vue'
+import { Download, User, Timer, TrendCharts, ArrowRight, Document, CircleCheck, Loading, Warning, List, Star } from '@element-plus/icons-vue'
 import reportService from '@/services/reportService'
 import departmentService from '@/services/departmentService'
 import { downloadBlob } from '@/utils/helpers'
 import { handleApiError } from '@/utils/errorHandler'
 import BarChart from '@/components/charts/BarChart.vue'
+import feedbackService from '@/services/feedbackService'
+import FeedbackTimeline from '@/components/feedback/FeedbackTimeline.vue'
+import { formatDateTime, formatDate } from '@/utils/helpers'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -221,6 +312,17 @@ const total = ref(0)
 const detailDialogVisible = ref(false)
 const selectedDoctor = ref(null)
 const doctorFeedbacks = ref([])
+const selectedFeedback = ref(null)
+const feedbackDetailVisible = ref(false)
+const processHistory = ref([])
+const historyLoading = ref(false)
+
+const summary = reactive({
+	total: 0,
+	completed: 0,
+	avgTime: 0,
+	avgRating: 0
+})
 
 const chartData = computed(() => {
 	const top10 = [...reportData.value]
@@ -241,18 +343,82 @@ const chartData = computed(() => {
 	}
 })
 
+// Computed stats from doctorFeedbacks to ensure accuracy
+const detailStats = computed(() => {
+	const feedbacks = doctorFeedbacks.value
+	const total = feedbacks.length
+	const completed = feedbacks.filter(f => f.status === 'COMPLETED').length
+	const processing = feedbacks.filter(f => f.status === 'PROCESSING' || f.status === 'ASSIGNED').length
+	const pending = feedbacks.filter(f => f.status === 'NEW' || f.status === 'PENDING').length
+	const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+	
+	return {
+		total,
+		completed,
+		processing,
+		pending,
+		completionRate
+	}
+})
+
+
 const fetchData = async () => {
 	loading.value = true
 	try {
+		// Convert month range to date range for API
+		let dateFrom = null
+		let dateTo = null
+		if (dateRange.value && dateRange.value.length === 2) {
+			const startMonth = dateRange.value[0] // YYYY-MM
+			const endMonth = dateRange.value[1] // YYYY-MM
+			
+			if (startMonth) {
+				// First day of start month
+				dateFrom = startMonth + '-01'
+			}
+			if (endMonth) {
+				// Last day of end month
+				const [year, month] = endMonth.split('-')
+				const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+				dateTo = endMonth + '-' + String(lastDay).padStart(2, '0')
+			}
+		}
+		
 		const response = await reportService.getByDoctor({
 			departmentId: filterDepartment.value,
-			startMonth: dateRange.value?.[0],
-			endMonth: dateRange.value?.[1]
+			dateFrom,
+			dateTo
 		})
 		// API returns array directly
 		const data = Array.isArray(response) ? response : (response.data || [])
 		reportData.value = data
 		total.value = data.length
+		
+		// Calculate summary from data
+		if (data.length > 0) {
+			summary.total = data.reduce((sum, item) => sum + (item.total || 0), 0)
+			summary.completed = data.reduce((sum, item) => sum + (item.completed || 0), 0)
+			
+			// Calculate average time (if avgDays exists in data)
+			const totalDays = data.reduce((sum, item) => sum + ((item.avgDays || 0) * (item.total || 0)), 0)
+			summary.avgTime = summary.total > 0 ? (totalDays / summary.total).toFixed(1) : 0
+			
+			// Calculate average rating (weighted by total feedbacks)
+			const doctorsWithRating = data.filter(item => item.rating && item.rating > 0)
+			if (doctorsWithRating.length > 0) {
+				const totalRatingWeighted = doctorsWithRating.reduce((sum, item) => sum + ((item.rating || 0) * (item.total || 0)), 0)
+				const totalForRating = doctorsWithRating.reduce((sum, item) => sum + (item.total || 0), 0)
+				summary.avgRating = totalForRating > 0 ? (totalRatingWeighted / totalForRating).toFixed(1) : 0
+			} else {
+				summary.avgRating = 0
+			}
+		} else {
+			// Reset summary if no data
+			summary.total = 0
+			summary.completed = 0
+			summary.avgTime = 0
+			summary.avgRating = 0
+		}
 	} catch (error) {
 		if (DEMO_MODE) {
 			// Demo data - only in demo mode
@@ -266,6 +432,11 @@ const fetchData = async () => {
 			total.value = 5
 		} else {
 			handleApiError(error, 'Report By Doctor')
+			// Reset summary on error
+			summary.total = 0
+			summary.completed = 0
+			summary.avgTime = 0
+			summary.avgRating = 0
 		}
 	} finally {
 		loading.value = false
@@ -300,8 +471,34 @@ const handleRowClick = async (row) => {
 const fetchDoctorDetail = async (doctorId) => {
 	detailLoading.value = true
 	try {
-		// Use feedbackService to get feedbacks by doctor
-		const response = await feedbackService.getList({ doctorId, size: 100 })
+		// Convert month range to date range for API
+		let dateFrom = null
+		let dateTo = null
+		if (dateRange.value && dateRange.value.length === 2 && dateRange.value[0] && dateRange.value[1]) {
+			const startMonth = dateRange.value[0] // YYYY-MM
+			const endMonth = dateRange.value[1] // YYYY-MM
+			
+			if (startMonth) {
+				dateFrom = startMonth + '-01'
+			}
+			if (endMonth) {
+				const [year, month] = endMonth.split('-')
+				const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+				dateTo = endMonth + '-' + String(lastDay).padStart(2, '0')
+			}
+		}
+		
+		// Use feedbackService to get feedbacks by doctor with date range
+		// Always include dateFrom and dateTo if dateRange is set, otherwise don't filter by date
+		const params = { doctorId, size: 100 }
+		if (dateFrom) {
+			params.dateFrom = dateFrom
+		}
+		if (dateTo) {
+			params.dateTo = dateTo
+		}
+		
+		const response = await feedbackService.getList(params)
 		
 		// Handle both array and object with data property
 		const data = Array.isArray(response) ? response : (response.data || [])
@@ -310,9 +507,11 @@ const fetchDoctorDetail = async (doctorId) => {
 			code: f.code,
 			content: f.content,
 			status: f.status,
+			receivedDate: f.receivedDate ? formatDate(f.receivedDate) : (f.createdDate ? formatDate(f.createdDate) : ''),
+			createdDate: f.receivedDate ? formatDate(f.receivedDate) : (f.createdDate ? formatDate(f.createdDate) : ''),
 			processingTime: f.completedDate && f.receivedDate ? 
 				Math.round((new Date(f.completedDate) - new Date(f.receivedDate)) / (1000 * 60 * 60 * 24) * 10) / 10 : null,
-			completedDate: f.completedDate ? new Date(f.completedDate).toLocaleDateString('vi-VN') : null
+			completedDate: f.completedDate ? formatDate(f.completedDate) : null
 		}))
 	} catch (error) {
 		if (DEMO_MODE) {
@@ -333,6 +532,69 @@ const fetchDoctorDetail = async (doctorId) => {
 	}
 }
 
+const getSummaries = (param) => {
+	const { columns, data } = param
+	const sums = []
+	
+	columns.forEach((column, index) => {
+		if (index === 0) {
+			// Index column - show "Tổng"
+			sums[index] = 'Tổng'
+			return
+		}
+		
+		if (column.property === 'avgDays' || column.property === 'rating') {
+			// These columns have custom summary templates
+			sums[index] = ''
+			return
+		}
+		
+		if (column.property === 'doctorName' || column.property === 'specialty') {
+			// Text columns - empty
+			sums[index] = ''
+			return
+		}
+		
+		const values = data.map(item => Number(item[column.property]))
+		
+		if (!values.every(value => isNaN(value))) {
+			// Các cột khác - tính tổng
+			sums[index] = values.reduce((prev, curr) => {
+				const value = Number(curr)
+				if (!isNaN(value)) {
+					return prev + curr
+				} else {
+					return prev
+				}
+			}, 0)
+		} else {
+			sums[index] = ''
+		}
+	})
+	
+	return sums
+}
+
+const getAvgDaysSummary = () => {
+	if (reportData.value.length === 0) return '0 ngày'
+	
+	const values = reportData.value.map(item => Number(item.avgDays)).filter(v => !isNaN(v))
+	if (values.length === 0) return '0 ngày'
+	
+	const avg = values.reduce((prev, curr) => prev + curr, 0) / values.length
+	return avg > 0 ? avg.toFixed(1) + ' ngày' : '0 ngày'
+}
+
+const getRatingSummary = () => {
+	if (reportData.value.length === 0) return '0.0'
+	
+	const values = reportData.value.map(item => Number(item.rating)).filter(v => !isNaN(v) && v > 0)
+	if (values.length === 0) return '0.0'
+	
+	const avg = values.reduce((prev, curr) => prev + curr, 0) / values.length
+	return avg > 0 ? avg.toFixed(1) : '0.0'
+}
+
 const getStatusType = (status) => {
 	const types = {
 		'PENDING': 'danger',
@@ -351,21 +613,93 @@ const getStatusLabel = (status) => {
 	return labels[status] || status
 }
 
+const mapStatusToAction = (status) => {
+	const statusMap = {
+		'NEW': 'CREATE',
+		'ASSIGNED': 'ASSIGN',
+		'PROCESSING': 'PROCESS',
+		'COMPLETED': 'COMPLETE',
+		'PENDING': 'PENDING'
+	}
+	return statusMap[status] || 'UPDATE'
+}
+
+const handleFeedbackRowClick = async (row) => {
+	selectedFeedback.value = row
+	feedbackDetailVisible.value = true
+	await fetchProcessHistory(row.id)
+}
+
+const fetchProcessHistory = async (feedbackId) => {
+	historyLoading.value = true
+	try {
+		const response = await feedbackService.getProcessHistory(feedbackId)
+		const data = Array.isArray(response) ? response : (response.data || [])
+		
+		processHistory.value = data.map(item => ({
+			action: mapStatusToAction(item.status),
+			actor: item.createdByName || 'Hệ thống',
+			time: item.createdAt ? formatDateTime(item.createdAt) : '',
+			note: item.content || item.note || '',
+			attachments: item.images || []
+		}))
+	} catch (error) {
+		handleApiError(error, 'Process History')
+		processHistory.value = []
+	} finally {
+		historyLoading.value = false
+	}
+}
+
 const goToFeedbackList = () => {
 	detailDialogVisible.value = false
+	const query = {}
+	if (selectedDoctor.value?.id) {
+		query.doctorId = selectedDoctor.value.id
+	}
+	// Preserve date range if exists
+	if (dateRange.value && dateRange.value.length === 2) {
+		const startMonth = dateRange.value[0]
+		const endMonth = dateRange.value[1]
+		if (startMonth) {
+			query.dateFrom = startMonth + '-01'
+		}
+		if (endMonth) {
+			const [year, month] = endMonth.split('-')
+			const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+			query.dateTo = endMonth + '-' + String(lastDay).padStart(2, '0')
+		}
+	}
 	router.push({
 		path: '/feedback',
-		query: { doctorId: selectedDoctor.value?.id }
+		query
 	})
 }
 
 const exportExcel = async () => {
 	try {
+		// Convert month range to date range for API
+		let dateFrom = null
+		let dateTo = null
+		if (dateRange.value && dateRange.value.length === 2) {
+			const startMonth = dateRange.value[0] // YYYY-MM
+			const endMonth = dateRange.value[1] // YYYY-MM
+			
+			if (startMonth) {
+				dateFrom = startMonth + '-01'
+			}
+			if (endMonth) {
+				const [year, month] = endMonth.split('-')
+				const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+				dateTo = endMonth + '-' + String(lastDay).padStart(2, '0')
+			}
+		}
+		
 		const blob = await reportService.exportExcel({
 			type: 'by-doctor',
 			departmentId: filterDepartment.value,
-			startMonth: dateRange.value?.[0],
-			endMonth: dateRange.value?.[1]
+			dateFrom,
+			dateTo
 		})
 		downloadBlob(blob, `bao-cao-theo-bac-si-${Date.now()}.xlsx`)
 		ElMessage.success('Xuất Excel thành công!')
@@ -377,6 +711,13 @@ const exportExcel = async () => {
 onMounted(() => {
 	fetchData()
 	fetchDepartments()
+})
+
+// Watch dateRange to reload doctor detail if dialog is open
+watch(dateRange, () => {
+	if (detailDialogVisible.value && selectedDoctor.value?.id) {
+		fetchDoctorDetail(selectedDoctor.value.id)
+	}
 })
 </script>
 
@@ -437,6 +778,29 @@ onMounted(() => {
 
 .font-bold {
 	font-weight: 600;
+}
+
+/* Table Summary Row - Bold */
+:deep(.el-table__footer-wrapper) {
+	background-color: #f5f7fa;
+}
+
+:deep(.el-table__footer-wrapper .el-table__cell) {
+	font-weight: 700;
+	color: var(--secondary-color);
+	background-color: #f5f7fa !important;
+}
+
+:deep(.el-table__footer-wrapper .el-table__cell .cell) {
+	font-weight: 700;
+	color: var(--secondary-color);
+	white-space: nowrap;
+}
+
+.summary-text {
+	font-weight: 700;
+	color: var(--secondary-color);
+	white-space: nowrap;
 }
 
 /* Clickable Row */
@@ -528,46 +892,213 @@ onMounted(() => {
 	color: #ffd700 !important;
 }
 
-/* Detail Stats */
-.detail-stats {
+/* Stats Grid */
+.stats-grid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
 	gap: 16px;
 	margin-bottom: 24px;
 }
 
-.detail-stat-card {
-	padding: 20px;
-	background: #f5f7fa;
+.stat-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 16px;
+	border-radius: var(--radius-lg);
+	background: white;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	border-left: 4px solid;
+	transition: transform 0.2s, box-shadow 0.2s;
+	min-width: 0;
+	flex: 1;
+}
+
+.stat-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-total {
+	border-left-color: #667eea;
+}
+
+.stat-completed {
+	border-left-color: #67C23A;
+}
+
+.stat-time {
+	border-left-color: #409EFF;
+}
+
+.stat-rating {
+	border-left-color: #ff9900;
+}
+
+.stat-icon {
+	width: 48px;
+	height: 48px;
 	border-radius: var(--radius-md);
-	text-align: center;
-	border-left: 4px solid var(--primary-color);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+	flex-shrink: 0;
 }
 
-.detail-stat-card.success {
-	border-left-color: var(--success-color);
+.stat-total .stat-icon {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
 }
 
-.detail-stat-card.warning {
-	border-left-color: #e6a23c;
+.stat-completed .stat-icon {
+	background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+	color: white;
 }
 
-.detail-stat-card.info {
-	border-left-color: #409eff;
+.stat-time .stat-icon {
+	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+	color: white;
 }
 
-.stat-number {
-	display: block;
-	font-size: 28px;
+.stat-rating .stat-icon {
+	background: linear-gradient(135deg, #ff9900 0%, #ffb84d 100%);
+	color: white;
+}
+
+.stat-info {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+}
+
+.stat-value {
+	font-size: 24px;
 	font-weight: 700;
 	color: var(--secondary-color);
 	line-height: 1.2;
 }
 
-.stat-text {
+.stat-value small {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.stat-label {
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-secondary);
+	margin-top: 4px;
+	font-weight: 500;
+}
+
+.table-wrapper {
+	margin-top: 0;
+}
+
+/* Detail Summary */
+.detail-summary {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+.summary-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 16px;
+	border-radius: var(--radius-lg);
+	background: white;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	border-left: 4px solid;
+	transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.summary-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.summary-total {
+	border-left-color: #667eea;
+}
+
+.summary-completed {
+	border-left-color: #67C23A;
+}
+
+.summary-processing {
+	border-left-color: #E6A23C;
+}
+
+.summary-pending {
+	border-left-color: #F56C6C;
+}
+
+.summary-rate {
+	border-left-color: #4facfe;
+}
+
+.summary-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: var(--radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+	flex-shrink: 0;
+}
+
+.summary-total .summary-icon {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+}
+
+.summary-completed .summary-icon {
+	background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+	color: white;
+}
+
+.summary-processing .summary-icon {
+	background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+	color: white;
+}
+
+.summary-pending .summary-icon {
+	background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+	color: white;
+}
+
+.summary-rate .summary-icon {
+	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+	color: white;
+}
+
+.summary-info {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+}
+
+.summary-label {
 	font-size: 12px;
 	color: var(--text-secondary);
 	margin-top: 4px;
+	font-weight: 500;
+}
+
+.summary-value {
+	font-size: 24px;
+	font-weight: 700;
+	color: var(--secondary-color);
+	line-height: 1.2;
 }
 
 /* Detail Section */
@@ -590,7 +1121,12 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 1200px) {
-	.detail-stats {
+	.stats-grid {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 12px;
+	}
+
+	.detail-summary {
 		grid-template-columns: repeat(2, 1fr);
 	}
 }
@@ -610,16 +1146,48 @@ onMounted(() => {
 		justify-content: center;
 	}
 
-	.detail-stats {
+	.stats-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.stat-card {
+		padding: 12px;
+	}
+
+	.stat-icon {
+		width: 40px;
+		height: 40px;
+		font-size: 18px;
+	}
+
+	.stat-value {
+		font-size: 20px;
+	}
+
+	.charts-row {
+		grid-template-columns: 1fr;
+	}
+
+	.chart-container {
+		height: 350px;
+	}
+
+	.detail-summary {
 		grid-template-columns: 1fr 1fr;
 	}
 
-	.detail-stat-card {
-		padding: 16px;
+	.summary-card {
+		padding: 12px;
 	}
 
-	.stat-number {
-		font-size: 22px;
+	.summary-icon {
+		width: 40px;
+		height: 40px;
+		font-size: 18px;
+	}
+
+	.summary-value {
+		font-size: 20px;
 	}
 }
 

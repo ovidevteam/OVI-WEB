@@ -1,9 +1,9 @@
 <template>
-	<Line :data="chartData" :options="chartOptions" />
+	<Line :key="chartKey" :data="chartData" :options="chartOptions" />
 </template>
 
 <script setup>
-import { computed, watch, ref, shallowRef } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
 	Chart as ChartJS,
@@ -35,23 +35,46 @@ const props = defineProps({
 	}
 })
 
-// Use shallowRef for better performance with large datasets
-const chartData = shallowRef(props.data)
-let updateTimeout = null
-
-// Memoize chart data and debounce updates
-watch(() => props.data, (newData) => {
-	if (updateTimeout) {
-		clearTimeout(updateTimeout)
-	}
-	
-	// Debounce updates to prevent excessive re-renders
-	updateTimeout = setTimeout(() => {
-		// Only update if data actually changed
-		if (JSON.stringify(chartData.value) !== JSON.stringify(newData)) {
-			chartData.value = { ...newData }
+// Use computed to reactively update chart data
+const chartData = computed(() => {
+	// Ensure data structure is correct
+	if (!props.data || !props.data.labels || !Array.isArray(props.data.labels) || !props.data.datasets || !Array.isArray(props.data.datasets) || props.data.datasets.length === 0) {
+		return {
+			labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+			datasets: [{
+				label: 'Phản ánh',
+				data: [],
+				borderColor: '#0d6efd',
+				backgroundColor: 'rgba(13, 110, 253, 0.1)',
+				fill: true,
+				tension: 0.4
+			}]
 		}
-	}, 100)
+	}
+	// Ensure datasets[0].data exists and is an array
+	if (!props.data.datasets[0].data || !Array.isArray(props.data.datasets[0].data)) {
+		const defaultDataset = props.data.datasets[0] || {
+			label: 'Phản ánh',
+			borderColor: '#0d6efd',
+			backgroundColor: 'rgba(13, 110, 253, 0.1)',
+			fill: true,
+			tension: 0.4
+		}
+		return {
+			labels: props.data.labels || ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+			datasets: [{
+				...defaultDataset,
+				data: []
+			}]
+		}
+	}
+	return props.data
+})
+
+// Force chart update when data changes
+const chartKey = ref(0)
+watch(() => props.data, () => {
+	chartKey.value++
 }, { deep: true })
 
 const chartOptions = {

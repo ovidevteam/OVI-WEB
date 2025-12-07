@@ -220,30 +220,12 @@
 				</div>
 
 				<!-- Process History -->
-				<div class="process-history-section" v-if="selectedFeedback.processHistory?.length">
+				<div class="process-history-section">
 					<h4 class="section-title">
 						<el-icon><List /></el-icon>
 						Lịch sử xử lý
 					</h4>
-					<el-timeline>
-						<el-timeline-item
-							v-for="(item, index) in selectedFeedback.processHistory"
-							:key="index"
-							:type="getTimelineType(item.action)"
-							:timestamp="item.date"
-							placement="top"
-						>
-							<div class="timeline-content">
-								<div class="timeline-header">
-									<el-tag :type="getActionTagType(item.action)" size="small">
-										{{ item.action }}
-									</el-tag>
-									<span class="timeline-handler">{{ item.handler }}</span>
-								</div>
-								<div class="timeline-note">{{ item.note }}</div>
-							</div>
-						</el-timeline-item>
-					</el-timeline>
+					<FeedbackTimeline :logs="processHistory" />
 				</div>
 
 				<!-- Current Average Rating -->
@@ -263,7 +245,7 @@
 								</span>
 							</template>
 						</el-rate>
-					</div>
+								</div>
 				</div>
 
 				<!-- Rating Form -->
@@ -309,11 +291,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import ratingService from '@/services/ratingService'
+import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'
+import FeedbackTimeline from '@/components/feedback/FeedbackTimeline.vue'
 import { handleApiError } from '@/utils/errorHandler'
 import { formatDate } from '@/utils/helpers'
 import {
@@ -322,6 +307,8 @@ import {
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
+const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const loading = ref(false)
@@ -350,6 +337,7 @@ const stats = reactive({
 const ratingDialogVisible = ref(false)
 const selectedFeedback = ref(null)
 const ratingFormRef = ref(null)
+const processHistory = ref([])
 
 const ratingForm = reactive({
 	rating: 0,
@@ -647,7 +635,12 @@ const openRatingDialog = async (row) => {
 	selectedFeedback.value = { ...row }
 	ratingForm.rating = row.rating || 0
 	ratingForm.comment = row.comment || ''
+	// Reset process history before fetching
+	processHistory.value = []
 	ratingDialogVisible.value = true
+	
+	// Fetch process history
+	await fetchProcessHistory(row.id)
 	
 	// Always check if rating exists in database, even if row.rating is null/0
 	// This ensures we use update instead of create if rating already exists
@@ -668,6 +661,82 @@ const openRatingDialog = async (row) => {
 			// This is expected if rating doesn't exist yet
 		}
 	}
+}
+
+const fetchProcessHistory = async (feedbackId) => {
+	try {
+		if (DEMO_MODE) {
+			// Demo data
+			processHistory.value = [
+				{
+					id: 1,
+					action: 'CREATE',
+					createdDate: new Date().toISOString(),
+					userName: 'Nguyễn Thị Tiếp nhận',
+					note: 'Tạo phản ánh mới'
+				},
+				{
+					id: 2,
+					action: 'ASSIGN',
+					createdDate: new Date().toISOString(),
+					userName: 'Hệ thống',
+					note: 'Phân công cho BS. Nguyễn Văn A'
+				},
+				{
+					id: 3,
+					action: 'STATUS_CHANGE',
+					createdDate: new Date().toISOString(),
+					userName: 'BS. Nguyễn Văn A',
+					oldStatus: 'NEW',
+					newStatus: 'PROCESSING',
+					note: 'Bắt đầu xử lý'
+				},
+				{
+					id: 4,
+					action: 'COMPLETE',
+					createdDate: new Date().toISOString(),
+					userName: 'BS. Nguyễn Văn A',
+					note: 'Hoàn thành xử lý phản ánh'
+				}
+			]
+		} else {
+			// Fetch from API
+			const history = await feedbackService.getProcessHistory(feedbackId)
+			// Map backend format to frontend format (same as MyFeedbacks.vue)
+			processHistory.value = (history || []).map(item => ({
+				id: item.id,
+				action: mapStatusToAction(item.status),
+				createdDate: item.createdAt,
+				userName: item.createdByName || 'Hệ thống',
+				note: item.content || '', // Use content for note field in FeedbackTimeline
+				status: item.status,
+				images: item.images || []
+			}))
+		}
+	} catch (error) {
+		// If error, try to get from feedback detail
+		try {
+			const feedback = await feedbackService.getById(feedbackId)
+			if (feedback.logs && Array.isArray(feedback.logs)) {
+				processHistory.value = feedback.logs
+			} else {
+				processHistory.value = []
+			}
+		} catch (err) {
+			processHistory.value = []
+		}
+	}
+}
+
+// Map backend status to frontend action
+const mapStatusToAction = (status) => {
+	const statusMap = {
+		'NEW': 'CREATE',
+		'ASSIGNED': 'ASSIGN',
+		'PROCESSING': 'STATUS_CHANGE',
+		'COMPLETED': 'COMPLETE'
+	}
+	return statusMap[status] || 'COMMENT'
 }
 
 const submitRating = async () => {
@@ -757,7 +826,7 @@ const submitRating = async () => {
 				rating: ratingValue,
 				comment: ratingForm.comment || null
 			}
-			
+
 			// Submit rating data
 
 			// Always check if rating exists before deciding to create or update
@@ -768,10 +837,10 @@ const submitRating = async () => {
 				if (existingRating && existingRating.id) {
 					// Update existing rating
 					await ratingService.updateRating(existingRating.id, ratingData)
-				} else {
-					// Submit new rating
-					await ratingService.submitRating(ratingData)
-				}
+			} else {
+				// Submit new rating
+				await ratingService.submitRating(ratingData)
+			}
 			} catch (getRatingError) {
 				// If getRatingByFeedback fails (e.g., 404), try to create new rating
 				// But if create fails with "already exists", then try to update
@@ -805,6 +874,9 @@ const submitRating = async () => {
 
 			// Refresh data to get updated average rating and userHasRated status
 			await fetchData()
+			
+			// Refresh sidebar stats to update badge counts
+			window.dispatchEvent(new CustomEvent('refresh-feedback-stats'))
 		}
 	} catch (error) {
 		// Error already handled above or by errorHandler
@@ -816,9 +888,71 @@ const submitRating = async () => {
 	}
 }
 
-onMounted(() => {
+// Open rating dialog by feedback ID
+const openRatingDialogById = async (feedbackId) => {
+	// Find feedback in the list
+	let feedback = feedbackList.value.find(f => f.id === feedbackId)
+	if (!feedback) {
+		// If feedback not in list, fetch it first
+		try {
+			feedback = await feedbackService.getById(feedbackId)
+		} catch (error) {
+			ElMessage.error('Không thể tải thông tin phản ánh.')
+			return
+		}
+	}
+	// Always open dialog, even if it's already open with different feedback
+	// This ensures clicking different notifications will open different feedbacks
+	await openRatingDialog(feedback)
+}
+
+// Listen for notification events to open rating dialog
+const handleOpenRatingDialog = async (event) => {
+	const { feedbackId } = event.detail
+	if (feedbackId) {
+		await openRatingDialogById(feedbackId)
+	}
+}
+
+// Check query param and auto-open dialog
+const checkQueryParam = async () => {
+	const feedbackId = route.query.feedbackId
+	if (feedbackId) {
+		// Convert to number if it's a string
+		const id = typeof feedbackId === 'string' ? parseInt(feedbackId, 10) : feedbackId
+		if (id && !isNaN(id)) {
+			// Wait a bit for data to load if needed
+			if (feedbackList.value.length === 0) {
+				await fetchData()
+			}
+			await openRatingDialogById(id)
+			// Clear query param after opening dialog
+			router.replace({ query: {} })
+		}
+	}
+}
+
+onMounted(async () => {
 	fetchDepartments()
-	fetchData()
+	await fetchData()
+	
+	// Check query param for auto-opening dialog (from notification click)
+	await checkQueryParam()
+	
+	// Listen for notification events (for same-page notifications)
+	window.addEventListener('open-rating-dialog', handleOpenRatingDialog)
+})
+
+onBeforeUnmount(() => {
+	// Clean up event listener
+	window.removeEventListener('open-rating-dialog', handleOpenRatingDialog)
+})
+
+// Watch route query changes
+watch(() => route.query.feedbackId, async (newId) => {
+	if (newId) {
+		await checkQueryParam()
+	}
 })
 </script>
 
@@ -1061,46 +1195,17 @@ onMounted(() => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	margin-bottom: 16px;
 }
 
 .process-history-section .section-title .el-icon {
 	font-size: 18px;
 }
 
-.process-history-section :deep(.el-timeline) {
-	padding-left: 8px;
-	max-height: 240px;
+.process-history-section :deep(.feedback-timeline) {
+	max-height: 300px;
 	overflow-y: auto;
-}
-
-.process-history-section :deep(.el-timeline-item__timestamp) {
-	font-size: 12px;
-	color: var(--text-secondary);
-}
-
-.timeline-content {
-	background: var(--bg-hover);
-	padding: 10px 14px;
-	border-radius: var(--radius-md);
-}
-
-.timeline-header {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	margin-bottom: 6px;
-}
-
-.timeline-handler {
-	font-weight: 500;
-	color: var(--text-primary);
-	font-size: 13px;
-}
-
-.timeline-note {
-	font-size: 13px;
-	color: var(--text-secondary);
-	line-height: 1.5;
+	padding: 8px 0;
 }
 
 .rating-form-section {

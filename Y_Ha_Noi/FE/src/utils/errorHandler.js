@@ -58,10 +58,35 @@ export function handleError(error, context = '', options = {}) {
 	if (error?.response) {
 		// Axios error with response
 		const { status, data } = error.response
+		
+		// Debug: log full error response in development
+		if (import.meta.env.DEV) {
+			console.error('Error response:', {
+				status,
+				data: JSON.stringify(data, null, 2),
+				message: data?.message,
+				errors: data?.errors,
+				headers: error.response.headers
+			})
+		}
 
 		switch (status) {
 			case 400:
-				message = data?.message || 'Dữ liệu không hợp lệ'
+				// Try to extract validation error messages
+				if (data?.errors) {
+					// Handle both array and object format
+					let errorMessages = []
+					if (Array.isArray(data.errors)) {
+						errorMessages = data.errors
+					} else if (typeof data.errors === 'object') {
+						errorMessages = Object.values(data.errors).flat()
+					}
+					message = errorMessages.length > 0 
+						? errorMessages.join(', ') 
+						: data?.message || 'Dữ liệu không hợp lệ'
+				} else {
+					message = data?.message || 'Dữ liệu không hợp lệ'
+				}
 				errorLevel = 'warning'
 				break
 			case 401:

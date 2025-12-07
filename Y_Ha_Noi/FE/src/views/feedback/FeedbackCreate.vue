@@ -141,6 +141,7 @@ import { CHANNELS, LEVELS } from '@/utils/constants'
 import feedbackService from '@/services/feedbackService'
 import departmentService from '@/services/departmentService'
 import doctorService from '@/services/doctorService'
+import uploadService from '@/services/uploadService'
 import ImageUpload from '@/components/upload/ImageUpload.vue'
 import { handleApiError } from '@/utils/errorHandler'
 
@@ -207,7 +208,15 @@ const handleDepartmentChange = async (departmentId) => {
 	form.doctorId = null
 	if (departmentId) {
 		try {
-			doctors.value = await doctorService.getByDepartment(departmentId)
+			const response = await doctorService.getByDepartment(departmentId)
+			// Handle both array and paginated response
+			if (Array.isArray(response)) {
+				doctors.value = response
+			} else if (response && response.data) {
+				doctors.value = response.data
+			} else {
+				doctors.value = []
+			}
 		} catch (error) {
 			if (DEMO_MODE) {
 				// Demo data - only in demo mode
@@ -232,8 +241,77 @@ const handleSubmit = async () => {
 		await formRef.value.validate()
 		loading.value = true
 
-		await feedbackService.create(form)
+		// Prepare feedback data (without images)
+		// Note: Backend CreateFeedbackRequest doesn't have 'note' field
+		// Map frontend enum values to backend enum values
+		const mapChannelToBackend = (channel) => {
+			const mapping = {
+				'HOTLINE': 'PHONE',
+				'EMAIL': 'EMAIL',
+				'DIRECT': 'DIRECT',
+				'ZALO': 'PHONE', // Map to PHONE
+				'FACEBOOK': 'PHONE', // Map to PHONE
+				'OTHER': 'PHONE' // Map to PHONE
+			}
+			return mapping[channel] || 'PHONE'
+		}
+
+		const mapLevelToBackend = (level) => {
+			const mapping = {
+				'CRITICAL': 'HIGH', // Backend doesn't have CRITICAL, map to HIGH
+				'HIGH': 'HIGH',
+				'MEDIUM': 'MEDIUM',
+				'LOW': 'LOW'
+			}
+			return mapping[level] || 'MEDIUM'
+		}
+
+		const feedbackData = {
+			channel: mapChannelToBackend(form.channel),
+			level: mapLevelToBackend(form.level),
+			departmentId: form.departmentId,
+			doctorId: form.doctorId || null,
+			content: form.content.trim()
+		}
+
+		// Create feedback first
+		const response = await feedbackService.create(feedbackData)
+		const feedback = response?.data || response
+		const feedbackId = feedback?.id
+
+		if (!feedbackId) {
+			throw new Error('Không thể lấy ID phản ánh sau khi tạo')
+		}
+
+		// Upload images if any
+		if (form.images && form.images.length > 0) {
+			// Filter out already uploaded images (those with id or url)
+			const filesToUpload = form.images.filter(img => {
+				// If it's a File object (raw), it needs to be uploaded
+				return img instanceof File || (img.raw && img.raw instanceof File)
+			})
+
+			if (filesToUpload.length > 0) {
+				// Extract File objects
+				const files = filesToUpload.map(img => img.raw || img).filter(f => f instanceof File)
+				
+				if (files.length > 0) {
+					try {
+						await uploadService.uploadFeedbackImages(feedbackId, files)
+					} catch (uploadError) {
+						// Log error but don't fail the whole operation
+						console.error('Error uploading images:', uploadError)
+						ElMessage.warning('Phản ánh đã được tạo nhưng có lỗi khi upload ảnh')
+					}
+				}
+			}
+		}
+
 		ElMessage.success('Tạo phản ánh thành công!')
+		
+		// Refresh sidebar stats to update badge counts
+		window.dispatchEvent(new CustomEvent('refresh-feedback-stats'))
+		
 		router.push('/feedback')
 	} catch (error) {
 		if (error !== false) {

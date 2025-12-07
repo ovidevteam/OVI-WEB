@@ -18,12 +18,12 @@ export function formatDate(date, format = 'DD/MM/YYYY') {
 /**
  * Format date and time
  * @param {string|Date} date - Date to format
- * @returns {string} Formatted datetime string (DD/MM/YYYY HH:mm)
+ * @returns {string} Formatted datetime string (DD/MM/YYYY HH:mm:ss)
  * @example
- * formatDateTime('2025-01-27T14:30:00') // '27/01/2025 14:30'
+ * formatDateTime('2025-01-27T14:30:00') // '27/01/2025 14:30:00'
  */
 export function formatDateTime(date) {
-	return formatDate(date, 'DD/MM/YYYY HH:mm')
+	return formatDate(date, 'DD/MM/YYYY HH:mm:ss')
 }
 
 /**
@@ -104,7 +104,18 @@ export function getTypeByValue(array, value, defaultType = 'info') {
 }
 
 // Shorthand helpers
-export const getChannelLabel = (value) => getLabelByValue(CHANNELS, value)
+export const getChannelLabel = (value) => {
+	// Map backend enum values to frontend values
+	const backendToFrontend = {
+		'PHONE': 'HOTLINE',
+		'EMAIL': 'EMAIL',
+		'DIRECT': 'DIRECT',
+		'WEBSITE': 'OTHER'
+	}
+	// If value is backend enum, map it first
+	const frontendValue = backendToFrontend[value] || value
+	return getLabelByValue(CHANNELS, frontendValue) || value
+}
 export const getChannelColor = (value) => getColorByValue(CHANNELS, value)
 export const getLevelLabel = (value) => getLabelByValue(LEVELS, value)
 export const getLevelColor = (value) => getColorByValue(LEVELS, value)

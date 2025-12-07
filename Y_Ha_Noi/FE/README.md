@@ -1,8 +1,12 @@
 # Hệ thống Quản lý Phản ánh - Bệnh viện Y Hà Nội
 
+**Version:** 1.4.0
+
 ## Tổng quan
 
 Hệ thống web quản lý phản ánh từ bệnh nhân/nhân viên cho Bệnh viện Y Hà Nội.
+
+> 📝 Xem [CHANGELOG.md](./CHANGELOG.md) để biết lịch sử thay đổi và các tính năng mới.
 
 ## Tech Stack
 
@@ -415,5 +419,5 @@ Các endpoints hỗ trợ filtering qua query parameters:
 ---
 
 **Created:** 2025-11-27
-**Version:** 1.0.0
+**Version:** 1.4.0
 

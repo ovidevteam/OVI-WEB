@@ -123,9 +123,9 @@ const fetchData = async () => {
 	loading.value = true
 	try {
 		const response = await reportService.getWithImages({
-			departmentId: filterDepartment.value,
-			startDate: dateRange.value?.[0],
-			endDate: dateRange.value?.[1]
+			departmentId: filterDepartment.value || undefined,
+			dateFrom: dateRange.value?.[0],
+			dateTo: dateRange.value?.[1]
 		})
 		// API returns array directly
 		reportData.value = Array.isArray(response) ? response : (response.data || [])
