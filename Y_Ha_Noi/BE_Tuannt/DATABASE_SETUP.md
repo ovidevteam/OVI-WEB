@@ -86,13 +86,23 @@ docker exec -it feedback-postgres psql -U postgres -d feedback_db
 
 ## 📝 Cách 3: Tạo Schema thủ công (Cho Production)
 
-Nếu muốn tạo schema thủ công, có thể export từ database sau khi chạy lần đầu:
+Đã trích sẵn file `schema.sql` (chỉ cấu trúc). Dùng để tạo schema ở môi trường mới:
 
 ```powershell
-# Export schema
+# Tạo DB trống nếu chưa có
+psql -U postgres -c "CREATE DATABASE feedback_db;"
+
+# Apply schema
+psql -U postgres -d feedback_db -f schema.sql
+```
+
+Nếu cần tự export lại từ container PostgreSQL:
+
+```powershell
+# Chỉ schema
 docker exec feedback-postgres pg_dump -U postgres -d feedback_db --schema-only > schema.sql
 
-# Hoặc export cả data
+# Cả data
 docker exec feedback-postgres pg_dump -U postgres -d feedback_db > full_database.sql
 ```
 
